@@ -77,6 +77,9 @@ static bool IsValidFollowTarget(const gentity_t* spectator, const gentity_t* can
 	if (!spectator || !candidate || !candidate->inUse || !candidate->client)
 		return false;
 
+	if (candidate == spectator)
+		return false;
+
 	if (!ClientIsPlaying(candidate->client) || candidate->client->eliminated)
 		return false;
 
@@ -126,6 +129,15 @@ supporting both eyecam and third-person chase cameras.
 void ClientUpdateFollowers(gentity_t* ent) {
 	if (!ent || !ent->client)
 		return;
+
+	const bool isSpectator = deathmatch->integer
+		? !ClientIsPlaying(ent->client)
+		: (ent->client->sess.team == Team::Spectator);
+	if (!isSpectator && !ent->client->eliminated) {
+		if (ent->client->follow.target)
+			FreeFollower(ent);
+		return;
+	}
 
 	gentity_t* targ = ent->client->follow.target;
 

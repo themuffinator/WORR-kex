@@ -375,6 +375,7 @@ constexpr struct GameTypeRules {
 	bool					startingHealthBonus = true;
 	float					readyUpPercentile = 0.51f;
 } gt_rules_t[static_cast<int>(GameType::Total)] = {
+	/* GameType::None */ {GameFlags::None, 8, true, true, 0, 0},
 	/* GameType::FreeForAll */ {GameFlags::Frags},
 	/* GameType::Duel */ {GameFlags::Frags, 30, false, false, 0},
 	/* GameType::TeamDeathmatch */ {GameFlags::Teams | GameFlags::Frags, 30, true, true, 100, 20},
@@ -446,9 +447,11 @@ static void ResetMatchWorldState(bool reloadWorldEntities) {
 	CTF_ResetFlags();
 	Harvester_Reset();
 
-	if (!reloadedEntities) {
-		Monsters_KillAll();
+	if (reloadedEntities) {
+		return;
 	}
+
+	Monsters_KillAll();
 
 	gentity_t* ent;
 	size_t i;
@@ -1209,7 +1212,8 @@ void Match_Reset() {
 	level.intermission.postIntermission = false;
 	level.intermission.time = 0_sec;
 	level.intermission.duelWinLossApplied = false;
-	memset(&level.match, 0, sizeof(level.match));
+	// MatchOverallStats holds std::vector members; avoid memset UB.
+	level.match = {};
 
 	if (!warmup_enabled->integer) {
 		time_t now = GetCurrentRealTimeMillis();
@@ -1270,7 +1274,9 @@ static void CheckDMRoundState() {
 		for (auto ec : active_clients())
 			ec->client->latchedButtons = BUTTON_NONE;
 		level.roundState = RoundState::In_Progress;
-		level.roundStateTimer = level.time + GameTime::from_min(roundTimeLimit->value);
+		level.roundStateTimer = (roundTimeLimit->value > 0.f)
+			? level.time + GameTime::from_min(roundTimeLimit->value)
+			: 0_sec;
 		level.roundNumber++;
 		gi.Broadcast_Print(PRINT_CENTER, ".FIGHT!\n");
 		AnnouncerSound(world, "fight");
@@ -1292,11 +1298,17 @@ static void CheckDMRoundState() {
 		case RedRover:     CheckRoundRR(); break;
 		}
 
-		if (level.time >= level.roundStateTimer) {
+		if (level.roundState != RoundState::In_Progress)
+			return;
+
+		if (roundTimeLimit->value > 0.f && level.roundStateTimer && level.time >= level.roundStateTimer) {
 			switch (gt) {
 			case ClanArena:     CheckRoundTimeLimitCA(); break;
 			case CaptureStrike: CheckRoundStrikeTimeLimit(); break;
-				// Additional GTs can be added here
+			default:
+				RoundAnnounceDraw();
+				Round_End();
+				break;
 			}
 		}
 	}

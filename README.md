@@ -7,7 +7,7 @@
 It dramatically extends entity and gameplay support, integrates modern competitive systems, and refines the core feel of QUAKE II while preserving its fast-paced essence.
 </p>
 <p align="center">
-  This is the Kex-dependant version, the full-scale project can be followed <a href="https://github.com/themuffinator/WORR" target="_blank">here</a>.
+  This is the Kex-dependent version; the full-scale project lives <a href="https://github.com/themuffinator/WORR" target="_blank">here</a>.
 </p>
 <p align="center">
   It is a successor to my previous project, <a href="https://github.com/themuffinator/muffmode" target="_blank">Muff Mode</a>.
@@ -28,8 +28,9 @@ It dramatically extends entity and gameplay support, integrates modern competiti
 **WORR** transforms QUAKE II’s multiplayer into a flexible, competitive, and feature-rich platform.
 
 #### Gametypes
-- **18 distinct gametypes**, including:
+- **18 competitive gametypes plus Practice Mode**, including:
   - *Duel, Domination, Head Hunters, Clan Arena, Freeze Tag* and more
+  - *Practice Mode* for no-score warmups with self-damage disabled
 
 #### Game Modifiers
 - Unique match modifiers such as:
@@ -54,12 +55,12 @@ It dramatically extends entity and gameplay support, integrates modern competiti
 
 ## Documentation & Wiki
 - Browse the [WORR Knowledge Base](https://github.com/themuffinator/WORR-kex/wiki) for persona guides, cvar/command references, and feature overviews tailored to hosts, players, designers, and programmers. See [wiki/Home.md](wiki/Home.md) for the source file.
-- Markdown sources for the live wiki live in the repository’s [wiki/](wiki/) folder so documentation changes can travel alongside code updates.
+- Markdown sources for the live wiki live in the repository's [wiki/](wiki/) folder so documentation changes can travel alongside code updates.
 
 ---
 
 ## Documentation
-- **[WORR Wiki](docs/wiki/index.md)** — Persona-focused guides for server hosts, players, level designers, and programmers, plus links to broader reference material.
+- **[WORR Wiki](docs/wiki/index.md)** - Persona-focused guides for server hosts, players, level designers, and programmers, plus links to broader reference material.
 - Additional technical references live throughout the [`docs/`](docs/) directory, including changelog comparisons and versioning policy.
 
 > WORR does not currently ship a standalone web UI. To browse the wiki, open the Markdown files directly in your editor or render them with your preferred static site tooling.

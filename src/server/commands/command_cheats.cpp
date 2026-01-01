@@ -29,7 +29,9 @@ namespace Commands {
 		}
 
 		if (it_ent->inUse) {
-			Touch_Item(it_ent, ent, null_trace, true);
+			trace_t tr = null_trace;
+			tr.ent = it_ent;
+			Touch_Item(it_ent, ent, tr, true);
 			if (it_ent->inUse)
 				FreeEntity(it_ent);
 		}

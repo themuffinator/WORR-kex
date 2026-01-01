@@ -1,0 +1,3 @@
+give plasma rifle
+give cells 200
+echo very happy ammo added

@@ -18,9 +18,10 @@
 ## Gametype Cheat Sheet
 | Mode | Console Short Name | Core Focus & Notes | Quick Reference |
 | --- | --- | --- | --- |
-| Campaign | `cmp` | Solo/co-op progression with standard objectives. | — |
-| Free For All | `ffa` | Classic deathmatch; highest frag count wins. | — |
-| Duel | `duel` | 1v1 spotlight with frag scoring—great for warm-ups. | — |
+| Campaign | `cmp` | Solo/co-op progression with standard objectives. | - |
+| Practice Mode | `practice` | No-score warmup with self-damage disabled; great for aim drills and map walks. | `g_gametype 0` |
+| Free For All | `ffa` | Classic deathmatch; highest frag count wins. | - |
+| Duel | `duel` | 1v1 spotlight with frag scoring; ideal for focused skill checks. | - |
 | Team Deathmatch | `tdm` | Teams race to frag limit; communication decides trades. | — |
 | Domination | `dom` | Capture and hold control points for continuous scoring; flip bonuses reward aggression. | [Domination guide](../domination.md) |
 | Capture The Flag | `ctf` | Flag runs and returns define the pace. | — |
@@ -38,7 +39,7 @@
 | ProBall | `ball` | Team sports twist—control the ball to score. | — |
 | Gauntlet | `gauntlet` | Duel-centric rounds emphasizing precision frags. | — |
 
-> **Tip:** Loadouts, scoring rules, and round flow come from the flags defined in `GameTypeInfo`. The console short name is the value to feed `g_gametype` or the Call Vote menu. Consult mode-specific docs (e.g., Domination above) when a lobby needs deeper strategy, and map authors can reference the [Entity Catalogue](level-design.md#entity-catalogue) to double-check spawn and objective coverage before sharing workshop builds.
+> **Tip:** Loadouts, scoring rules, and round flow come from the flags defined in `GameTypeInfo`. Practice Mode (`g_gametype 0` or `gametype practice`) keeps the map live with no-score and self-damage disabled, which is great for warmups. The console short name is the value to feed `g_gametype` or the Call Vote menu. Consult mode-specific docs (e.g., Domination above) when a lobby needs deeper strategy, and map authors can reference the [Entity Catalogue](level-design.md#entity-catalogue) to double-check spawn and objective coverage before sharing workshop builds.
 
 ## Voting and Match Etiquette
 - Want the complete syntax for `callvote`, ready commands, or spectator tools? Check the [Command Reference](commands.md) for detailed usage notes to share with teammates before calling for action.

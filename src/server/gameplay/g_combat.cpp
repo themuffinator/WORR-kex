@@ -745,7 +745,7 @@ static void CheckDamageProtection(
 	ctx.hasClient = (targCl != nullptr);
 	ctx.combatDisabled = CombatIsDisabled();
 	ctx.proBall = Game::Is(GameType::ProBall);
-	ctx.selfDamageDisabled = !g_selfDamage->integer;
+	ctx.selfDamageDisabled = !g_selfDamage->integer || Game::Is(GameType::None);
 	ctx.isSelfDamage = (attacker != nullptr) && (targ == attacker);
 	ctx.hasBattleSuit = (targCl && targCl->PowerupTimer(PowerupTimer::BattleSuit) > level.time);
 	ctx.isRadiusDamage = static_cast<int>(dFlags & DamageFlags::Radius);
@@ -916,11 +916,7 @@ void Damage(gentity_t* targ, gentity_t* inflictor, gentity_t* attacker, const Ve
 			armorSave = 0;
 		}
 		else {
-			if (targ == attacker && Game::Has(GameFlags::Arena) && !g_arenaSelfDmgArmor->integer) {
-				take = 0;
-				save = damage;
-			}
-			else {
+			if (!(targ == attacker && Game::Has(GameFlags::Arena) && !g_arenaSelfDmgArmor->integer)) {
 				powerArmorSave = CheckPowerArmor(targ, point, normal, take, dFlags);
 				take -= powerArmorSave;
 
@@ -935,11 +931,6 @@ void Damage(gentity_t* targ, gentity_t* inflictor, gentity_t* attacker, const Ve
 
 	// additional protections and powerups
 	if (!freezeSuppressed && !static_cast<int>(dFlags & DamageFlags::NoProtection)) {
-		if (targ == attacker && Game::Has(GameFlags::Arena)) {
-			take = 0;
-			save = 0;
-		}
-
 		// tech: disruptor shield, etc.
 		take = Tech_ApplyDisruptorShield(targ, take);
 

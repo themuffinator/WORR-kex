@@ -22,27 +22,22 @@ cvar_t* g_gametype = &g_gametype_storage;
 
 int main() {
 	// Valid values within [GT_FIRST, GT_LAST] should be accepted untouched.
-	g_gametype_storage.integer = static_cast<int>(GameType::FreeForAll);
+	g_gametype_storage.integer = static_cast<int>(GameType::None);
 	assert(Game::IsCurrentTypeValid());
-	assert(Game::NormalizeTypeValue(g_gametype_storage.integer) == GameType::FreeForAll);
+	assert(Game::NormalizeTypeValue(g_gametype_storage.integer) == GameType::None);
 
 	g_gametype_storage.integer = static_cast<int>(GT_LAST);
 	assert(Game::IsCurrentTypeValid());
 	assert(Game::NormalizeTypeValue(g_gametype_storage.integer) == GT_LAST);
 
-	// Sentinel or engine-provided defaults (e.g., 0) must fall back to FreeForAll.
-	g_gametype_storage.integer = static_cast<int>(GameType::None);
-	assert(!Game::IsCurrentTypeValid());
-	assert(Game::NormalizeTypeValue(g_gametype_storage.integer) == GameType::FreeForAll);
-
-	// Out-of-range upper bounds should also snap back to FreeForAll.
+	// Out-of-range upper bounds should also snap back to Practice Mode.
 	g_gametype_storage.integer = static_cast<int>(GameType::Total);
 	assert(!Game::IsCurrentTypeValid());
-	assert(Game::NormalizeTypeValue(g_gametype_storage.integer) == GameType::FreeForAll);
+	assert(Game::NormalizeTypeValue(g_gametype_storage.integer) == GameType::None);
 
 	g_gametype_storage.integer = 256;
 	assert(!Game::IsCurrentTypeValid());
-	assert(Game::NormalizeTypeValue(g_gametype_storage.integer) == GameType::FreeForAll);
+	assert(Game::NormalizeTypeValue(g_gametype_storage.integer) == GameType::None);
 	
 	// Mid-match assignments should coerce back to FreeForAll before additional logic runs.
 	g_gametype_storage.integer = static_cast<int>(GameType::TeamDeathmatch);
@@ -50,26 +45,26 @@ int main() {
 	
 	g_gametype_storage.integer = 4096;
 	const GameType mid_match = Game::NormalizeTypeValue(g_gametype_storage.integer);
-	assert(mid_match == GameType::FreeForAll);
+	assert(mid_match == GameType::None);
 	g_gametype_storage.integer = static_cast<int>(mid_match);
-	assert(g_gametype_storage.integer == static_cast<int>(GameType::FreeForAll));
+	assert(g_gametype_storage.integer == static_cast<int>(GameType::None));
 
-	// Negative values should also fall back to FreeForAll and not crash.
+	// Negative values should also fall back to Practice Mode and not crash.
 	g_gametype_storage.integer = -5;
 	assert(!Game::IsCurrentTypeValid());
-	assert(Game::GetCurrentType() == GameType::FreeForAll);
-	assert(Game::GetCurrentInfo().type == GameType::FreeForAll);
+	assert(Game::GetCurrentType() == GameType::None);
+	assert(Game::GetCurrentInfo().type == GameType::None);
 
 	// Oversized integers must resolve to the fallback gametype info.
 	g_gametype_storage.integer = 1'000'000;
 	assert(!Game::IsCurrentTypeValid());
-	assert(Game::GetCurrentType() == GameType::FreeForAll);
-	assert(Game::GetCurrentInfo().type == GameType::FreeForAll);
+	assert(Game::GetCurrentType() == GameType::None);
+	assert(Game::GetCurrentInfo().type == GameType::None);
 
 	// A null gametype pointer should behave identically to the fallback case.
 	g_gametype = nullptr;
-	assert(Game::GetCurrentType() == GameType::FreeForAll);
-	assert(Game::GetCurrentInfo().type == GameType::FreeForAll);
+	assert(Game::GetCurrentType() == GameType::None);
+	assert(Game::GetCurrentInfo().type == GameType::None);
 	g_gametype = &g_gametype_storage;
 
 	return 0;

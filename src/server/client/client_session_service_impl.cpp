@@ -47,6 +47,110 @@ return !(ent->flags & FL_FLY) && ent->gravity != 0.0f;
 
 /*
 =============
+ApplyFallingDamage
+
+Matches legacy P_FallingDamage behavior for player movement.
+=============
+*/
+static void ApplyFallingDamage(gentity_t* ent, const PMove& pm) {
+	int damage;
+	Vector3 dir;
+
+	if (ent->health <= 0 || ent->deadFlag)
+		return;
+
+	if (ent->s.modelIndex != MODELINDEX_PLAYER)
+		return;
+
+	if (ent->moveType == MoveType::NoClip || ent->moveType == MoveType::FreeCam)
+		return;
+
+	if (pm.waterLevel == WATER_UNDER)
+		return;
+
+	if (ent->client->grapple.releaseTime >= level.time ||
+		(ent->client->grapple.entity &&
+			ent->client->grapple.state > GrappleState::Fly))
+		return;
+
+	float delta = pm.impactDelta;
+
+	delta = delta * delta * 0.0001f;
+
+	if (pm.waterLevel == WATER_WAIST)
+		delta *= 0.25f;
+	if (pm.waterLevel == WATER_FEET)
+		delta *= 0.5f;
+
+	if (delta < 1.0f)
+		return;
+
+	ent->client->feedback.bobTime = 0;
+
+	if (ent->client->landmark_free_fall) {
+		delta = min(30.f, delta);
+		ent->client->landmark_free_fall = false;
+		ent->client->landmark_noise_time = level.time + 100_ms;
+	}
+
+	if (delta < 15) {
+		if (!(pm.s.pmFlags & PMF_ON_LADDER))
+			ent->s.event = EV_FOOTSTEP;
+		return;
+	}
+
+	ent->client->feedback.fallValue = delta * 0.5f;
+	if (ent->client->feedback.fallValue > 40)
+		ent->client->feedback.fallValue = 40;
+	ent->client->feedback.fallTime = level.time + FALL_TIME();
+
+	int med_min = RS(Quake3Arena) ? 40 : 30;
+	int far_min = RS(Quake3Arena) ? 61 : 55;
+
+	if (delta > med_min) {
+		if (delta >= far_min)
+			ent->s.event = EV_FALL_FAR;
+		else
+			ent->s.event = EV_FALL_MEDIUM;
+		if (g_fallingDamage->integer && !Game::Has(GameFlags::Arena)) {
+			const int healthBefore = ent->health;
+			const int feedbackBefore = ent->client
+				? (ent->client->damage.blood + ent->client->damage.armor + ent->client->damage.powerArmor)
+				: 0;
+
+			if (RS(Quake3Arena))
+				damage = ent->s.event == EV_FALL_FAR ? 10 : 5;
+			else {
+				damage = (int)((delta - 30) / 3);
+				if (damage < 1)
+					damage = 1;
+			}
+			dir = { 0, 0, 1 };
+
+			Damage(ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DamageFlags::Normal, ModID::FallDamage);
+
+			if (ent->client) {
+				const int feedbackAfter = ent->client->damage.blood + ent->client->damage.armor + ent->client->damage.powerArmor;
+				const int healthDelta = healthBefore - ent->health;
+				if (healthDelta > 0 && ent->health > 0 && feedbackAfter == feedbackBefore) {
+					// Ensure fall damage generates HUD feedback even if damage tracking misses it.
+					ent->client->damage.blood += healthDelta;
+					ent->client->damage.origin = ent->s.origin;
+					ent->client->last_damage_time = level.time + COOP_DAMAGE_RESPAWN_TIME;
+				}
+			}
+		}
+	}
+	else {
+		ent->s.event = EV_FALL_SHORT;
+	}
+
+	if (ent->health)
+		G_PlayerNoise(ent, pm.s.origin, PlayerNoise::Self);
+}
+
+/*
+=============
 ClientLogLabel
 
 Build a concise label for client logging, including entity number and display name.
@@ -153,6 +257,7 @@ static bool HandleMenuMovement(gentity_t* ent, usercmd_t* ucmd) {
 
 	if (ent->client->latchedButtons & (BUTTON_ATTACK | BUTTON_JUMP)) {
 		ActivateSelectedMenuItem(ent);
+		ent->client->latchedButtons &= ~(BUTTON_ATTACK | BUTTON_JUMP);
 		return true;
 	}
 
@@ -1070,6 +1175,7 @@ gentity_t* ent, usercmd_t* ucmd) {
 
 	level.currentEntity = ent;
 	cl = ent->client;
+	bool menuHandled = false;
 
 	//no movement during map or match intermission
 	if (level.timeoutActive > 0_ms) {
@@ -1087,6 +1193,9 @@ gentity_t* ent, usercmd_t* ucmd) {
 	cl->latchedButtons |= cl->buttons & ~cl->oldButtons;
 	cl->cmd = *ucmd;
 
+	if (cl->menu.current)
+		menuHandled = HandleMenuMovement(ent, ucmd);
+
 	if ((cl->latchedButtons & BUTTON_USE) && FreezeTag_IsActive() && ClientIsPlaying(cl) && !cl->eliminated) {
 		if (gentity_t* target = worr::server::client::FreezeTag_FindFrozenTarget(ent)) {
 			gclient_t* targetCl = target->client;
@@ -1099,17 +1208,56 @@ gentity_t* ent, usercmd_t* ucmd) {
 		cl->latchedButtons &= ~BUTTON_USE;
 	}
 
-	if (!cl->initialMenu.shown && cl->initialMenu.delay && level.time > cl->initialMenu.delay) {
-		if (!ClientIsPlaying(cl) && (!cl->sess.initialised || cl->sess.inactiveStatus)) {
-			if (ent == host) {
-				if (!g_autoScreenshotTool->integer) {
-					if (g_owner_push_scores->integer)
-						Commands::Score(ent, CommandArgs{});
-					else OpenJoinMenu(ent);
-				}
+	const bool initialMenuReady = (cl->initialMenu.delay && level.time > cl->initialMenu.delay);
+	if (cl->initialMenu.frozen && ent == host && g_autoScreenshotTool->integer) {
+		cl->initialMenu.frozen = false;
+		cl->initialMenu.shown = true;
+		cl->initialMenu.delay = 0_sec;
+		cl->initialMenu.hostSetupDone = true;
+	}
+
+	auto showInitialMenu = [&](gentity_t* player) {
+		if (!player || !player->client)
+			return;
+
+		if ((player->svFlags & SVF_BOT) || player->client->sess.is_a_bot) {
+			player->client->initialMenu.frozen = false;
+			player->client->initialMenu.hostSetupDone = true;
+			return;
+		}
+
+		if (player == host) {
+			if (g_autoScreenshotTool->integer)
+				return;
+
+			if (player->client->initialMenu.frozen && !player->client->initialMenu.hostSetupDone) {
+				OpenSetupWelcomeMenu(player);
+				player->client->initialMenu.hostSetupDone = true;
+				return;
 			}
-			else
-				OpenJoinMenu(ent);
+
+			if (!player->client->initialMenu.frozen && g_owner_push_scores->integer) {
+				Commands::Score(player, CommandArgs{});
+				return;
+			}
+		}
+
+		OpenJoinMenu(player);
+	};
+
+	if (cl->initialMenu.frozen) {
+		if (!ClientIsPlaying(cl)) {
+			const bool needsOpen = (!cl->initialMenu.shown && initialMenuReady) || (cl->initialMenu.shown && !cl->menu.current);
+			if (needsOpen) {
+				showInitialMenu(ent);
+				cl->initialMenu.delay = 0_sec;
+				cl->initialMenu.shown = true;
+			}
+		}
+	}
+	else if (!cl->initialMenu.shown && initialMenuReady) {
+		if (!ClientIsPlaying(cl) && (!cl->sess.initialised || cl->sess.inactiveStatus)) {
+			showInitialMenu(ent);
 			//if (!cl->initialMenu.shown)
 			//      gi.LocClient_Print(ent, PRINT_CHAT, "Welcome to {} v{}.\n", worr::version::kGameTitle, worr::version::kGameVersion);
 			cl->initialMenu.delay = 0_sec;
@@ -1169,6 +1317,8 @@ gentity_t* ent, usercmd_t* ucmd) {
 		cl->ps.pmove.pmType = PM_FREEZE;
 
 		bool n64_sp = false;
+		if (cl->menu.current && !menuHandled)
+			HandleMenuMovement(ent, ucmd);
 
 		if (level.intermission.time) {
 			n64_sp = !deathmatch->integer && level.isN64;
@@ -1204,7 +1354,8 @@ gentity_t* ent, usercmd_t* ucmd) {
 				pmState.pmType = PM_FREEZE;
 
 				// [Paril-KEX] handle menu movement
-				HandleMenuMovement(ent, ucmd);
+				if (!menuHandled)
+					HandleMenuMovement(ent, ucmd);
 			}
 			else if (cl->awaitingRespawn)
 				pmState.pmType = PM_FREEZE;
@@ -1236,8 +1387,6 @@ gentity_t* ent, usercmd_t* ucmd) {
 
 		pmState.haste = cl->PowerupTimer(PowerupTimer::Haste) > level.time;
 
-		pmState.pmFlags |= PMF_JUMP_HELD;
-
 		if ((game.cheatsFlag & GameCheatFlags::Fly) != GameCheatFlags::None)
 			pmState.pmFlags |= (PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION);
 
@@ -1264,6 +1413,9 @@ gentity_t* ent, usercmd_t* ucmd) {
 		if (std::memcmp(&cl->old_pmove, &pm.s, sizeof(pm.s)) != 0)
 			pm.snapInitial = true;
 		pm.cmd = *ucmd;
+		if (cl->menu.current && !ClientIsPlaying(cl)) {
+			pm.cmd.angles = cl->ps.viewAngles - pm.s.deltaAngles;
+		}
 		pm.player = ent;
 		pm.trace = gi.game_import_t::trace;
 		pm.clip = ClientPMoveClip;
@@ -1271,8 +1423,13 @@ gentity_t* ent, usercmd_t* ucmd) {
 		pm.viewOffset = cl->ps.viewOffset;
 
 		const Vector3 oldOrigin = ent->s.origin;
+		const Vector3 savedViewAngles = cl->ps.viewAngles;
+		const Vector3 savedVAngle = cl->vAngle;
 
 		Pmove(&pm);
+
+		cl->ps.screenBlend = pm.screenBlend;
+		cl->ps.rdFlags = pm.rdFlags;
 
 		const bool wasOnLadder = (previousFlags & PMF_ON_LADDER) != PMF_NONE;
 		const bool onLadder = (pm.s.pmFlags & PMF_ON_LADDER) != PMF_NONE;
@@ -1286,6 +1443,9 @@ gentity_t* ent, usercmd_t* ucmd) {
 		switch (pm.s.pmType) {
 		case PM_SPECTATOR:
 			newMoveType = MoveType::FreeCam;
+			break;
+		case PM_FREEZE:
+			newMoveType = ent->moveType;
 			break;
 		case PM_NOCLIP:
 			newMoveType = MoveType::NoClip;
@@ -1311,6 +1471,8 @@ gentity_t* ent, usercmd_t* ucmd) {
 
 		ent->clipMask = clipMask;
 		ent->moveType = newMoveType;
+
+		ApplyFallingDamage(ent, pm);
 
 		if ((onLadder != wasOnLadder)) {
 			cl->last_ladder_pos = ent->s.origin;
@@ -1362,6 +1524,14 @@ gentity_t* ent, usercmd_t* ucmd) {
 			cl->ps.viewAngles = pm.viewAngles;
 			AngleVectors(cl->vAngle, cl->vForward, nullptr, nullptr);
 		}
+		else if (ent->moveType == MoveType::FreeCam || !ClientIsPlaying(cl)) {
+			cl->ps.viewAngles = savedViewAngles;
+			cl->vAngle = savedVAngle;
+			ent->s.angles[PITCH] = 0;
+			ent->s.angles[ROLL] = 0;
+			ent->s.angles[YAW] = savedViewAngles[YAW];
+			AngleVectors(cl->vAngle, cl->vForward, nullptr, nullptr);
+		}
 
 		if (cl->grapple.entity)
 			Weapon_Grapple_Pull(cl->grapple.entity);
@@ -1381,13 +1551,17 @@ gentity_t* ent, usercmd_t* ucmd) {
 			trace_t& tr = pm.touch.traces[i];
 			other = tr.ent;
 
+			if (!other || !other->inUse) {
+				continue;
+			}
+
 			if (other->touch)
 				other->touch(other, ent, tr, true);
 		}
 	}
 
 	// fire weapon from final position if needed
-	if (cl->latchedButtons & BUTTON_ATTACK) {
+	if (!cl->menu.current && (cl->latchedButtons & BUTTON_ATTACK)) {
 		if (!ClientIsPlaying(cl) || (cl->eliminated && !cl->sess.is_a_bot)) {
 			cl->latchedButtons = BUTTON_NONE;
 
@@ -1412,7 +1586,7 @@ gentity_t* ent, usercmd_t* ucmd) {
 	}
 
 	if (!ClientIsPlaying(cl) || (cl->eliminated && !cl->sess.is_a_bot)) {
-		if (!HandleMenuMovement(ent, ucmd)) {
+		if (!menuHandled && !HandleMenuMovement(ent, ucmd)) {
 			if (ucmd->buttons & BUTTON_JUMP) {
 				if (!(cl->ps.pmove.pmFlags & PMF_JUMP_HELD)) {
 					cl->ps.pmove.pmFlags |= PMF_JUMP_HELD;
@@ -1489,11 +1663,7 @@ gentity_t* ent) {
 		client->weapon.thunk = false;
 
 	if (ent->client->menu.current) {
-		const button_t latchedButtons = client->latchedButtons;
 		client->latchedButtons = BUTTON_NONE;
-
-		if ((latchedButtons & BUTTON_ATTACK))
-			ActivateSelectedMenuItem(ent);
 		return;
 	}
 	else if (ent->deadFlag) {

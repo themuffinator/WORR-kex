@@ -414,12 +414,13 @@ void Change_Weapon(gentity_t* ent) {
 		Weapon_RunThink(ent);
 }
 
-constexpr std::array<item_id_t, 21> weaponPriorityList{ {
+constexpr std::array<item_id_t, 22> weaponPriorityList{ {
 		IT_WEAPON_DISRUPTOR,
 		IT_WEAPON_BFG,
 		IT_WEAPON_RAILGUN,
 		IT_WEAPON_THUNDERBOLT,
 		IT_WEAPON_PLASMABEAM,
+		IT_WEAPON_PLASMAGUN,
 		IT_WEAPON_IONRIPPER,
 		IT_WEAPON_HYPERBLASTER,
 		IT_WEAPON_ETF_RIFLE,
@@ -456,6 +457,7 @@ static item_id_t weaponIndexToItemID(Weapon weaponIndex) {
 	case RocketLauncher:	return IT_WEAPON_RLAUNCHER;
 	case HyperBlaster:		return IT_WEAPON_HYPERBLASTER;
 	case IonRipper:			return IT_WEAPON_IONRIPPER;
+	case PlasmaGun:			return IT_WEAPON_PLASMAGUN;
 	case PlasmaBeam:		return IT_WEAPON_PLASMABEAM;
 	case Thunderbolt:		return IT_WEAPON_THUNDERBOLT;
 	case Railgun:			return IT_WEAPON_RAILGUN;
@@ -3079,6 +3081,94 @@ void Weapon_ETF_Rifle(gentity_t* ent) {
 /*
 ======================================================================
 
+PLASMA GUN
+
+======================================================================
+*/
+
+// v_plasmr.md2 has 52 frames (0..51)
+constexpr int PLASMAGUN_FRAME_ACTIVATE_LAST = 8;
+constexpr int PLASMAGUN_FRAME_FIRE_LAST = 42;
+constexpr int PLASMAGUN_FRAME_IDLE_LAST = 49;
+constexpr int PLASMAGUN_FRAME_DEACTIVATE_LAST = 51;
+constexpr int PLASMAGUN_FRAME_FIRE_FIRST = PLASMAGUN_FRAME_ACTIVATE_LAST + 1;
+constexpr int PLASMAGUN_FRAME_IDLE_FIRST = PLASMAGUN_FRAME_FIRE_LAST + 1;
+
+static void Weapon_PlasmaGun_Fire(gentity_t* ent) {
+	if (!ent || !ent->client)
+		return;
+
+	auto* cl = ent->client;
+	const bool firing = (cl->buttons & BUTTON_ATTACK) && !CombatIsDisabled();
+	const bool hasAmmo = cl->pers.inventory[cl->pers.weapon->ammo] >= cl->pers.weapon->quantity;
+
+	if (!firing || !hasAmmo) {
+		cl->ps.gunFrame = PLASMAGUN_FRAME_IDLE_FIRST;
+		cl->weaponSound = 0;
+		if (firing && !hasAmmo)
+			NoAmmoWeaponChange(ent, true);
+		return;
+	}
+
+	if (cl->ps.gunFrame < PLASMAGUN_FRAME_FIRE_FIRST || cl->ps.gunFrame > PLASMAGUN_FRAME_FIRE_LAST) {
+		cl->ps.gunFrame = PLASMAGUN_FRAME_FIRE_FIRST;
+	}
+	else {
+		cl->ps.gunFrame++;
+		if (cl->ps.gunFrame > PLASMAGUN_FRAME_FIRE_LAST)
+			cl->ps.gunFrame = PLASMAGUN_FRAME_FIRE_FIRST;
+	}
+
+	int damage = 20;
+	int splashDamage = 15;
+	const float splashRadius = 20.f;
+	int speed = 2000;
+
+	if (isQuad) {
+		damage *= damageMultiplier;
+		splashDamage *= damageMultiplier;
+	}
+
+	Vector3 start{}, dir{};
+	P_ProjectSource(ent, cl->vAngle, { 24.f, 8.f, -8.f }, start, dir);
+
+	fire_plasmagun(ent, start, dir, damage, speed, splashRadius, splashDamage);
+
+	gi.sound(ent, CHAN_WEAPON, gi.soundIndex("weapons/plsmfire.wav"), 1, ATTN_NORM, 0);
+
+	gi.WriteByte(svc_muzzleflash);
+	gi.WriteEntity(ent);
+	gi.WriteByte(MZ_HYPERBLASTER | isSilenced);
+	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+
+	G_PlayerNoise(ent, start, PlayerNoise::Weapon);
+	Weapon_PowerupSound(ent);
+
+	cl->pers.match.totalShots++;
+	cl->pers.match.totalShotsPerWeapon[static_cast<uint8_t>(Weapon::PlasmaGun)]++;
+	RemoveAmmo(ent, 1);
+
+	cl->anim.priority = ANIM_ATTACK;
+	if (cl->ps.pmove.pmFlags & PMF_DUCKED) {
+		ent->s.frame = FRAME_crattak1 - static_cast<int>(frandom() + 0.25f);
+		cl->anim.end = FRAME_crattak9;
+	}
+	else {
+		ent->s.frame = FRAME_attack1 - static_cast<int>(frandom() + 0.25f);
+		cl->anim.end = FRAME_attack8;
+	}
+	cl->anim.time = 0_ms;
+}
+
+void Weapon_PlasmaGun(gentity_t* ent) {
+	constexpr int pauseFrames[] = { 0 };
+	Weapon_Repeating(ent, PLASMAGUN_FRAME_ACTIVATE_LAST, PLASMAGUN_FRAME_FIRE_LAST,
+		PLASMAGUN_FRAME_IDLE_LAST, PLASMAGUN_FRAME_DEACTIVATE_LAST, pauseFrames, Weapon_PlasmaGun_Fire);
+}
+
+/*
+======================================================================
+
 PLASMA BEAM
 
 ======================================================================
@@ -3088,15 +3178,14 @@ static void Weapon_PlasmaBeam_Fire(gentity_t* ent) {
 	const bool firing = (ent->client->buttons & BUTTON_ATTACK) && !CombatIsDisabled();
 	const bool hasAmmo = ent->client->pers.inventory[ent->client->pers.weapon->ammo] >= ent->client->pers.weapon->quantity;
 
-	// Do NOT forcibly set ps.gunFrame here if a weapon change is pending!
 	if (!firing || !hasAmmo) {
+		ent->client->ps.gunFrame = 13;
 		ent->client->weaponSound = 0;
 		ent->client->ps.gunSkin = 0;
 
 		// Only forcibly exit the fire loop if the player is truly out of ammo
 		if (firing && !hasAmmo)
 			NoAmmoWeaponChange(ent, true);
-		// Do NOT set ent->client->ps.gunFrame = 13; or similar here!
 		return;
 	}
 
@@ -3188,13 +3277,13 @@ THUNDERBOLT
 ======================================================================
 */
 
-// Frame defines should match your weapon's animation sequence
-constexpr int TB_FRAME_ACTIVATE_LAST = 6;   // Change as per your weapon animation
-constexpr int TB_FRAME_FIRE_LAST = 13;
-constexpr int TB_FRAME_IDLE_LAST = 20;
-constexpr int TB_FRAME_DEACTIVATE_LAST = 23;
-constexpr int tb_pauseFrames[] = { 12, 18, 0 };      // adjust for your anim
-constexpr int tb_fireFrames[] = { 7, 8, 9, 10, 11, 0 }; // adjust for your anim
+// v_light.md2 has 5 frames (shot1..shot5); use a compact fire loop.
+constexpr int TB_FRAME_ACTIVATE_LAST = 0;
+constexpr int TB_FRAME_FIRE_LAST = 2;
+constexpr int TB_FRAME_IDLE_LAST = 3;
+constexpr int TB_FRAME_DEACTIVATE_LAST = 4;
+constexpr int TB_FRAME_FIRE_FIRST = TB_FRAME_ACTIVATE_LAST + 1;
+constexpr int TB_FRAME_IDLE_FIRST = TB_FRAME_FIRE_LAST + 1;
 
 static void Weapon_Thunderbolt_Fire(gentity_t* ent) {
 	const bool firing = (ent->client->buttons & BUTTON_ATTACK) && !CombatIsDisabled();
@@ -3203,16 +3292,25 @@ static void Weapon_Thunderbolt_Fire(gentity_t* ent) {
 	if (!firing || !hasAmmo) {
 		ent->client->weaponSound = 0;
 		ent->client->ps.gunSkin = 0;
+		ent->client->ps.gunFrame = TB_FRAME_IDLE_FIRST;
+		ent->client->thunderbolt_sound_time = 0_ms;
 
 		if (firing && !hasAmmo)
 			NoAmmoWeaponChange(ent, true);
-		// Do NOT set gunFrame here, let state machine handle deactivation
 		return;
 	}
 
-	// Advance gunFrame (state machine handles looping, don't touch here unless needed)
+	const bool startingFire = (ent->client->ps.gunFrame < TB_FRAME_FIRE_FIRST || ent->client->ps.gunFrame > TB_FRAME_FIRE_LAST);
+	if (startingFire) {
+		ent->client->ps.gunFrame = TB_FRAME_FIRE_FIRST;
+	}
+	else {
+		ent->client->ps.gunFrame++;
+		if (ent->client->ps.gunFrame > TB_FRAME_FIRE_LAST)
+			ent->client->ps.gunFrame = TB_FRAME_FIRE_FIRST;
+	}
 
-	ent->client->weaponSound = gi.soundIndex("weapons/lhit.wav");
+	ent->client->weaponSound = 0;
 	ent->client->ps.gunSkin = 1;
 
 	// Determine damage and kick
@@ -3233,18 +3331,28 @@ static void Weapon_Thunderbolt_Fire(gentity_t* ent) {
 
 	ent->client->kick.time = 0_ms;
 
-	// --- HAND OFFSET ---
-	const Vector3 handOffset = { 7.f, 2.f, -3.f };
+	const Vector3 projectionOffset = { 7.f, 2.f, -3.f };
+	const Vector3 muzzleOffset = { 2.f, 7.f, -3.f };
 	Vector3 start, dir;
-	P_ProjectSource(ent, ent->client->vAngle, handOffset, start, dir);
+	P_ProjectSource(ent, ent->client->vAngle, projectionOffset, start, dir);
 
 	LagCompensate(ent, start, dir);
 
-	// --- PLAY INITIAL SOUND ON FIRST FIRE FRAME ---
-	const bool playFireSound = (ent->client->ps.gunFrame == TB_FRAME_ACTIVATE_LAST + 1);
-	fire_thunderbolt(ent, start, dir, handOffset, damage, kick, ModID::Thunderbolt, playFireSound);
+	const bool discharged = fire_thunderbolt(ent, start, dir, muzzleOffset, damage, kick, ModID::Thunderbolt, static_cast<int>(damageMultiplier));
 
 	UnLagCompensate();
+
+	if (!discharged) {
+		if (startingFire) {
+			gi.sound(ent, CHAN_WEAPON, gi.soundIndex("weapons/lstart.wav"), 1, ATTN_NORM, 0);
+			ent->client->thunderbolt_sound_time = level.time + 600_ms;
+		}
+
+		if (level.time >= ent->client->thunderbolt_sound_time) {
+			gi.sound(ent, CHAN_WEAPON, gi.soundIndex("weapons/lhit.wav"), 1, ATTN_NORM, 0);
+			ent->client->thunderbolt_sound_time = level.time + 600_ms;
+		}
+	}
 
 	Weapon_PowerupSound(ent);
 #if 0
@@ -3257,7 +3365,15 @@ static void Weapon_Thunderbolt_Fire(gentity_t* ent) {
 
 	ent->client->pers.match.totalShots++;
 	ent->client->pers.match.totalShotsPerWeapon[static_cast<uint8_t>(Weapon::Thunderbolt)]++;
-	RemoveAmmo(ent, RS(Quake1) ? 2 : 1);
+	if (discharged) {
+		ent->client->ps.gunFrame = TB_FRAME_IDLE_FIRST;
+		ent->client->weaponSound = 0;
+		ent->client->ps.gunSkin = 0;
+		ent->client->thunderbolt_sound_time = 0_ms;
+	}
+	else {
+		RemoveAmmo(ent, 1);
+	}
 
 	ent->client->anim.priority = ANIM_ATTACK;
 	if (ent->client->ps.pmove.pmFlags & PMF_DUCKED) {
@@ -3279,9 +3395,9 @@ Weapon_Thunderbolt
 ==========================
 */
 void Weapon_Thunderbolt(gentity_t* ent) {
-	constexpr int pauseFrames[] = { 35, 0 };
+	constexpr int pauseFrames[] = { 0 };
 
-	Weapon_Repeating(ent, 8, 12, 42, 47, pauseFrames, Weapon_Thunderbolt_Fire);
+	Weapon_Repeating(ent, TB_FRAME_ACTIVATE_LAST, TB_FRAME_FIRE_LAST, TB_FRAME_IDLE_LAST, TB_FRAME_DEACTIVATE_LAST, pauseFrames, Weapon_Thunderbolt_Fire);
 }
 
 

@@ -10,7 +10,7 @@ Domination is WORR's territory-control ruleset. Each supported map places severa
 ## Server Controls
 | Cvar | Default | Description |
 | --- | --- | --- |
-| `g_gametype` | `0` (`ffa`) | Set to the short name `dom` (or the numeric index for `GameType::Domination`) to run the mode. |
+| `g_gametype` | `1` (`ffa`) | Set to the short name `dom` (or the numeric index for `GameType::Domination`) to run the mode. |
 | `fraglimit` | `0` | Points required to win. Recommended `100` for classic Domination pacing. |
 | `timelimit` | `0` | Minutes before the server stops the round. The Domination ruleset suggests `20`. |
 | `match_do_overtime` | `120` | Adds sudden-death time in tied games. |

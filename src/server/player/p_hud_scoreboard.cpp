@@ -151,7 +151,7 @@ static void AddScoreboardHeaderAndFooter(std::string& layout, gentity_t* viewer,
 		// Press button prompt (5s gate)
 		int frameGate = level.intermission.serverFrame + (5_sec).frames();
 		AppendFormat(layout,
-			"ifgef {} yb -48 xv 0 loc_cstring2 0 \"$m_eou_press_button\" endif ",
+			"ifgef {} yb -58 xv 0 cstring2 \"darkmatter-quake.com\" yb -48 xv 0 loc_cstring2 0 \"$m_eou_press_button\" endif ",
 			frameGate);
 	}
 	// During live match
@@ -582,28 +582,238 @@ TeamsScoreboardMessage
 ===============
 */
 void TeamsScoreboardMessage(gentity_t* ent, gentity_t* killer) {
-	std::string layout;
+	uint32_t i, j, k, n;
 	uint8_t sorted[2][MAX_CLIENTS] = {};
 	int8_t sortedScores[2][MAX_CLIENTS] = {};
-	uint8_t total[2] = {}, totalLiving[2] = {};
+	int score;
+	uint8_t total[2] = {};
+	uint8_t totalLiving[2] = {};
 	int totalScore[2] = {};
-	uint8_t lastShown[2] = {};
-	int teamsize = floor(maxplayers->integer / 2);
+	uint8_t last[2] = {};
+	gclient_t* cl;
+	gentity_t* cl_ent;
+	int team;
+	const int teamsize = floor(maxplayers->integer / 2);
 
-	SortClientsByTeamAndScore(sorted, sortedScores, total, totalLiving, totalScore);
+	total[0] = total[1] = 0;
+	totalLiving[0] = totalLiving[1] = 0;
+	last[0] = last[1] = 0;
+	totalScore[0] = totalScore[1] = 0;
 
-	AddScoreboardHeaderAndFooter(layout, ent);
-	AddTeamScoreOverlay(layout, total, totalLiving, teamsize);
+	for (i = 0; i < game.maxClients; ++i) {
+		cl_ent = g_entities + 1 + i;
+		if (!cl_ent->inUse)
+			continue;
 
-	uint8_t lastRed = AddTeamPlayerEntries(layout, 0, sorted[0], total[0], killer);
-	uint8_t lastBlue = AddTeamPlayerEntries(layout, 1, sorted[1], total[1], killer);
+		if (game.clients[i].sess.team == Team::Red)
+			team = 0;
+		else if (game.clients[i].sess.team == Team::Blue)
+			team = 1;
+		else
+			continue;
 
-	lastShown[0] = lastRed;
-	lastShown[1] = lastBlue;
+		score = game.clients[i].resp.score;
+		for (j = 0; j < total[team]; ++j)
+			if (score > sortedScores[team][j])
+				break;
+		for (k = total[team]; k > j; --k) {
+			sorted[team][k] = sorted[team][k - 1];
+			sortedScores[team][k] = sortedScores[team][k - 1];
+		}
+		sorted[team][j] = i;
+		sortedScores[team][j] = score;
+		totalScore[team] += score;
+		total[team]++;
+		if (!game.clients[i].eliminated)
+			totalLiving[team]++;
+	}
 
-	AddTeamSummaryLine(layout, total, lastShown);
-	int startY = ((std::max(lastRed, lastBlue) + 3) * 8) + 42;
-	AddSpectatorList(layout, startY, SpectatorListMode::Both);
+	std::string layout;
+	layout.clear();
+
+	fmt::format_to(std::back_inserter(layout), FMT_STRING("xv 0 yv -40 cstring2 \"{} on '{}'\" "),
+		level.gametype_name.data(), level.longName.data());
+	fmt::format_to(std::back_inserter(layout), FMT_STRING("xv 0 yv -30 cstring2 \"Score Limit: {}\" "),
+		GT_ScoreLimit());
+
+	if (level.intermission.time) {
+		if (level.levelStartTime && (level.time - level.levelStartTime).seconds() > 0) {
+			int duration = (level.intermission.time - level.levelStartTime - 1_sec).milliseconds();
+			fmt::format_to(std::back_inserter(layout), FMT_STRING("xv 0 yv -50 cstring2 \"Total Match Time: {}\" "),
+				TimeString(duration, false, false));
+		}
+		if (level.intermission.victorMessage[0]) {
+			fmt::format_to(std::back_inserter(layout), FMT_STRING("xv 0 yv -10 cstring2 \"{}\" "),
+				level.intermission.victorMessage.data());
+		}
+
+		fmt::format_to(std::back_inserter(layout),
+			FMT_STRING("ifgef {} yb -58 xv 0 cstring2 \"darkmatter-quake.com\" yb -48 xv 0 loc_cstring2 0 \"$m_eou_press_button\" endif "),
+			(level.intermission.serverFrame + (5_sec).frames()));
+	}
+	else if (level.matchState == MatchState::In_Progress) {
+		if (ent->client && ClientIsPlaying(ent->client) && ent->client->resp.score > 0 && level.pop.num_playing_clients > 1) {
+			fmt::format_to(std::back_inserter(layout),
+				FMT_STRING("xv 0 yv -10 cstring2 \"{} place with a score of {}\" "),
+				PlaceString(ent->client->pers.currentRank + 1), ent->client->resp.score);
+		}
+		fmt::format_to(std::back_inserter(layout),
+			FMT_STRING("xv 0 yb -48 cstring2 \"{}\" "),
+			"Use inventory bind to toggle menu.");
+	}
+
+	if (Game::Has(GameFlags::CTF)) {
+		fmt::format_to(std::back_inserter(layout),
+			FMT_STRING("if 25 xv -32 yv 8 pic 25 endif "
+				"xv 0 yv 28 string \"{}/{}\" "
+				"xv 58 yv 12 num 3 19 "
+				"xv -40 yv 42 string \"SC\" "
+				"xv -12 yv 42 picn ping "
+				"if 26 xv 208 yv 8 pic 26 endif "
+				"xv 240 yv 28 string \"{}/{}\" "
+				"xv 296 yv 12 num 3 21 "
+				"xv 200 yv 42 string \"SC\" "
+				"xv 228 yv 42 picn ping "),
+			total[0], teamsize,
+			total[1], teamsize);
+	}
+	else if (Game::Has(GameFlags::Rounds)) {
+		fmt::format_to(std::back_inserter(layout),
+			FMT_STRING("if 25 xv -32 yv 8 pic 25 endif "
+				"xv 0 yv 28 string \"{}/{}/{}\" "
+				"xv 58 yv 12 num 3 19 "
+				"xv -40 yv 42 string \"SC\" "
+				"xv -12 yv 42 picn ping "
+				"if 26 xv 208 yv 8 pic 26 endif "
+				"xv 240 yv 28 string \"{}/{}/{}\" "
+				"xv 296 yv 12 num 3 21 "
+				"xv 200 yv 42 string \"SC\" "
+				"xv 228 yv 42 picn ping "),
+			totalLiving[0], total[0], teamsize,
+			totalLiving[1], total[1], teamsize);
+	}
+	else {
+		fmt::format_to(std::back_inserter(layout),
+			FMT_STRING("if 25 xv -32 yv 8 pic 25 endif "
+				"xv -123 yv 28 cstring \"{}/{}\" "
+				"xv 41 yv 12 num 3 19 "
+				"xv -40 yv 42 string \"SC\" "
+				"xv -12 yv 42 picn ping "
+				"if 26 xv 208 yv 8 pic 26 endif "
+				"xv 117 yv 28 cstring \"{}/{}\" "
+				"xv 280 yv 12 num 3 21 "
+				"xv 200 yv 42 string \"SC\" "
+				"xv 228 yv 42 picn ping "),
+			total[0], teamsize,
+			total[1], teamsize);
+	}
+
+	for (i = 0; i < 16; ++i) {
+		if (i >= total[0] && i >= total[1])
+			break;
+
+		if (i < total[0]) {
+			cl = &game.clients[sorted[0][i]];
+			cl_ent = g_entities + 1 + sorted[0][i];
+
+			int ty = 52 + i * 8;
+			std::string_view entry = G_Fmt("ctf -40 {} {} {} {} {} ",
+				ty,
+				sorted[0][i],
+				cl->resp.score,
+				cl->ping > 999 ? 999 : cl->ping,
+				cl_ent->client->pers.inventory[IT_FLAG_BLUE] ? "sbfctf2" : "\"\"");
+
+			if (level.matchState == MatchState::Warmup_ReadyUp && (cl->pers.readyStatus || cl->sess.is_a_bot)) {
+				fmt::format_to(std::back_inserter(layout),
+					FMT_STRING("xv -56 yv {} picn {} "), ty - 2, "wheel/p_compass_selected");
+			}
+			else if (Game::Has(GameFlags::Rounds) && level.matchState == MatchState::In_Progress && !cl->eliminated) {
+				fmt::format_to(std::back_inserter(layout),
+					FMT_STRING("xv -50 yv {} picn {} "), ty, "sbfctf1");
+			}
+
+			if (layout.size() + entry.size() < MAX_STRING_CHARS) {
+				layout += entry;
+				last[0] = static_cast<uint8_t>(i);
+			}
+		}
+
+		if (i < total[1]) {
+			cl = &game.clients[sorted[1][i]];
+			cl_ent = g_entities + 1 + sorted[1][i];
+
+			int ty = 52 + i * 8;
+			std::string_view entry = G_Fmt("ctf 200 {} {} {} {} {} ",
+				ty,
+				sorted[1][i],
+				cl->resp.score,
+				cl->ping > 999 ? 999 : cl->ping,
+				cl_ent->client->pers.inventory[IT_FLAG_RED] ? "sbfctf1" : "\"\"");
+
+			if (level.matchState == MatchState::Warmup_ReadyUp && (cl->pers.readyStatus || cl->sess.is_a_bot)) {
+				fmt::format_to(std::back_inserter(layout),
+					FMT_STRING("xv 182 yv {} picn {} "), ty - 2, "wheel/p_compass_selected");
+			}
+			else if (Game::Has(GameFlags::Rounds) && level.matchState == MatchState::In_Progress && !cl->eliminated) {
+				fmt::format_to(std::back_inserter(layout),
+					FMT_STRING("xv 190 yv {} picn {} "), ty, "sbfctf2");
+			}
+
+			if (layout.size() + entry.size() < MAX_STRING_CHARS) {
+				layout += entry;
+				last[1] = static_cast<uint8_t>(i);
+			}
+		}
+	}
+
+	if (last[0] > last[1])
+		j = last[0];
+	else
+		j = last[1];
+	j = (j + 3) * 8 + 42;
+
+	k = n = 0;
+	if (layout.size() < MAX_STRING_CHARS - 50) {
+		for (i = 0; i < game.maxClients; ++i) {
+			cl_ent = g_entities + 1 + i;
+			cl = &game.clients[i];
+			if (!cl_ent->inUse || cl_ent->solid != SOLID_NOT || ClientIsPlaying(cl_ent->client))
+				continue;
+
+			if (!k) {
+				k = 1;
+				fmt::format_to(std::back_inserter(layout),
+					FMT_STRING("xv 0 yv {} loc_string2 0 \"$g_pc_spectators\" "), j);
+				j += 8;
+			}
+
+			std::string_view entry = G_Fmt("ctf {} {} {} {} {} \"\" ",
+				(n & 1) ? 200 : -40,
+				j,
+				i,
+				cl->resp.score,
+				cl->ping > 999 ? 999 : cl->ping);
+
+			if (layout.size() + entry.size() < MAX_STRING_CHARS)
+				layout += entry;
+
+			if (n & 1)
+				j += 8;
+			n++;
+		}
+	}
+
+	if (total[0] - last[0] > 1) {
+		fmt::format_to(std::back_inserter(layout),
+			FMT_STRING("xv -32 yv {} loc_string 1 $g_ctf_and_more {} "),
+			42 + (last[0] + 1) * 8, total[0] - last[0] - 1);
+	}
+	if (total[1] - last[1] > 1) {
+		fmt::format_to(std::back_inserter(layout),
+			FMT_STRING("xv 208 yv {} loc_string 1 $g_ctf_and_more {} "),
+			42 + (last[1] + 1) * 8, total[1] - last[1] - 1);
+	}
 
 	gi.WriteByte(svc_layout);
 	gi.WriteString(layout.c_str());

@@ -35,6 +35,7 @@ void Weapon_GrenadeLauncher(gentity_t* ent);
 void Weapon_Railgun(gentity_t* ent);
 void Weapon_BFG(gentity_t* ent);
 void Weapon_IonRipper(gentity_t* ent);
+void Weapon_PlasmaGun(gentity_t* ent);
 void Weapon_Phalanx(gentity_t* ent);
 void Weapon_Trap(gentity_t* ent);
 void Weapon_ChainFist(gentity_t* ent);

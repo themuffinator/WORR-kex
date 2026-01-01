@@ -39,6 +39,17 @@ Returns the total number of scrollable menu entries in the provided list.
 		}));
 	}
 
+	int CountFixedEntries(const std::vector<MenuEntry>& entries) {
+		return static_cast<int>(std::count_if(entries.begin(), entries.end(), [](const MenuEntry& entry) {
+			return !entry.scrollable;
+		}));
+	}
+
+	int MaxScrollableVisible(const std::vector<MenuEntry>& entries) {
+		const int fixedCount = CountFixedEntries(entries);
+		return std::max(0, MAX_VISIBLE_LINES - fixedCount);
+	}
+
 /*
 =============
 ScrollableIndexFor
@@ -63,27 +74,32 @@ Builds the list of entries that should be rendered based on the current
 scroll offset.
 =============
 */
-	std::vector<const MenuEntry*> CollectVisibleEntries(const std::vector<MenuEntry>& entries, int offset, int maxOffset) {
+	std::vector<const MenuEntry*> CollectVisibleEntries(const std::vector<MenuEntry>& entries, int offset, int maxScrollableVisible) {
 		int skippedScrollable = offset;
 		int visibleScrollable = 0;
 		std::vector<const MenuEntry*> visibleEntries;
 		visibleEntries.reserve(entries.size());
 
 		for (const MenuEntry& entry : entries) {
-			if (!entry.scrollable)
-				continue;
+			if (entry.scrollable) {
+				if (skippedScrollable > 0) {
+					--skippedScrollable;
+					continue;
+				}
 
-			if (skippedScrollable > 0) {
-				--skippedScrollable;
-				continue;
+				if (visibleScrollable >= maxScrollableVisible)
+					continue;
+
+				++visibleScrollable;
+				visibleEntries.push_back(&entry);
 			}
-
-			if (visibleScrollable >= MAX_VISIBLE_LINES)
-				continue;
-
-			++visibleScrollable;
-			visibleEntries.push_back(&entry);
+			else {
+				visibleEntries.push_back(&entry);
+			}
 		}
+
+		if (visibleEntries.size() > static_cast<size_t>(MAX_VISIBLE_LINES))
+			visibleEntries.resize(static_cast<size_t>(MAX_VISIBLE_LINES));
 
 		return visibleEntries;
 	}
@@ -228,20 +244,23 @@ void Menu::Render(gentity_t* ent) const {
 	sb.xv(32).yv(8).picn("inventory");
 
 	const int totalScrollable = CountScrollableEntries(entries);
-	const int maxOffset = std::max(0, totalScrollable - MAX_VISIBLE_LINES);
+	const int maxScrollableVisible = MaxScrollableVisible(entries);
+	const int maxOffset = std::max(0, totalScrollable - maxScrollableVisible);
 	const int offset = std::clamp(scrollOffset, 0, maxOffset);
 
 	const bool hasAbove = (offset > 0);
 	const bool hasBelow = (offset < maxOffset);
 
-	std::vector<const MenuEntry*> visibleEntries = CollectVisibleEntries(entries, offset, maxOffset);
+	std::vector<const MenuEntry*> visibleEntries = CollectVisibleEntries(entries, offset, maxScrollableVisible);
 
 	int y = 32;
+	const int listStartY = y;
+
+	const int indicatorX = 276;
 
 	if (hasAbove) {
-		sb.yv(y).xv(4);
-		sb.string("^\n");
-		y += 8;
+		sb.yv(listStartY).xv(indicatorX);
+		sb.string2("^");
 	}
 
 	for (const MenuEntry* entry : visibleEntries) {
@@ -278,8 +297,12 @@ void Menu::Render(gentity_t* ent) const {
 	}
 
 	if (hasBelow) {
-		sb.yv(y).xv(4);
-		sb.string("v\n");
+		int indicatorY = listStartY;
+		if (!visibleEntries.empty()) {
+			indicatorY = listStartY + (static_cast<int>(visibleEntries.size()) - 1) * 8;
+		}
+		sb.yv(indicatorY).xv(indicatorX);
+		sb.string2("v");
 	}
 
 	gi.WriteByte(svc_layout);
@@ -293,7 +316,8 @@ Menu::EnsureCurrentVisible
 */
 void Menu::EnsureCurrentVisible() {
 	const int totalScrollable = CountScrollableEntries(entries);
-	const int maxOffset = std::max(0, totalScrollable - MAX_VISIBLE_LINES);
+	const int maxScrollableVisible = MaxScrollableVisible(entries);
+	const int maxOffset = std::max(0, totalScrollable - maxScrollableVisible);
 
 	scrollOffset = std::clamp(scrollOffset, 0, maxOffset);
 
@@ -311,10 +335,10 @@ void Menu::EnsureCurrentVisible() {
 	}
 
 	const int scrollIndex = ScrollableIndexFor(entries, current);
-	const int halfWindow = MAX_VISIBLE_LINES / 2;
+	const int halfWindow = maxScrollableVisible / 2;
 	const int desiredOffset = std::clamp(scrollIndex - halfWindow, 0, maxOffset);
 
-	if (scrollIndex < scrollOffset || scrollIndex >= scrollOffset + MAX_VISIBLE_LINES) {
+	if (scrollIndex < scrollOffset || scrollIndex >= scrollOffset + maxScrollableVisible) {
 		scrollOffset = desiredOffset;
 	}
 

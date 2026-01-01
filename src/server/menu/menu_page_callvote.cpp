@@ -228,11 +228,6 @@ static void OpenCallvoteGametype(gentity_t* ent) {
 
 	// Iterate through the modern GAME_MODES array, which is more maintainable.
 	for (const auto& mode : GAME_MODES) {
-		// Skip adding "Campaign" (GameType::None) as a voteable option.
-		if (mode.type == GameType::None) {
-			continue;
-		}
-
 		// Capture the short name by value to ensure its lifetime for the lambda.
 		// We convert the string_view to a string for safe capture.
 		std::string shortName = std::string(mode.short_name);

@@ -72,6 +72,8 @@ static bool chthon_is_energy_mod(const MeansOfDeath& mod) {
         case ModID::BFG10K_Blast:
         case ModID::BFG10K_Effect:
         case ModID::IonRipper:
+        case ModID::PlasmaGun:
+        case ModID::PlasmaGun_Splash:
         case ModID::Phalanx:
         case ModID::Disruptor:
         case ModID::ETFRifle:

@@ -474,6 +474,9 @@
     <ClCompile Include="server\menu\menu_page_hostinfo.cpp">
       <Filter>menu</Filter>
     </ClCompile>
+    <ClCompile Include="server\menu\menu_page_mymap.cpp">
+      <Filter>menu</Filter>
+    </ClCompile>
     <ClCompile Include="server\menu\menu_page_welcome.cpp">
       <Filter>menu</Filter>
     </ClCompile>

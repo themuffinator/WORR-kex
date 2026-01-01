@@ -369,26 +369,27 @@ otherwise returns nullptr. Optionally ignores players when check_players == fals
 Attempts a tiny Z nudge and a generic un-stuck fix for map quirks.
 ===============
 */
-static gentity_t* G_UnsafeSpawnPosition(Vector3 spot, bool check_players) {
+static gentity_t* G_UnsafeSpawnPosition(Vector3 spot, bool check_players, const gentity_t* ignore = nullptr) {
 	contents_t mask = MASK_PLAYERSOLID;
 	if (!check_players) {
 		mask &= ~CONTENTS_PLAYER;
 	}
 
-	trace_t tr = gi.trace(spot, PLAYER_MINS, PLAYER_MAXS, spot, nullptr, mask);
+	gentity_t* ignoreEnt = const_cast<gentity_t*>(ignore);
+	trace_t tr = gi.trace(spot, PLAYER_MINS, PLAYER_MAXS, spot, ignoreEnt, mask);
 
 	// If embedded in non-client brush, try a tiny vertical nudge
 	if (tr.startSolid && (!tr.ent || !tr.ent->client)) {
 		spot[2] += 1.0f;
-		tr = gi.trace(spot, PLAYER_MINS, PLAYER_MAXS, spot, nullptr, mask);
+		tr = gi.trace(spot, PLAYER_MINS, PLAYER_MAXS, spot, ignoreEnt, mask);
 	}
 
 	// If still embedded in non-client geometry, try the generic un-stuck helper
 	if (tr.startSolid && (!tr.ent || !tr.ent->client)) {
 		const StuckResult fix = G_FixStuckObject_Generic(
 				spot, PLAYER_MINS, PLAYER_MAXS,
-				[mask](const Vector3& start, const Vector3& mins, const Vector3& maxs, const Vector3& end) {
-					return gi.trace(start, mins, maxs, end, nullptr, mask);
+				[mask, ignoreEnt](const Vector3& start, const Vector3& mins, const Vector3& maxs, const Vector3& end) {
+					return gi.trace(start, mins, maxs, end, ignoreEnt, mask);
 				}
 		);
 
@@ -396,7 +397,7 @@ static gentity_t* G_UnsafeSpawnPosition(Vector3 spot, bool check_players) {
 			return tr.ent; // could be world or brush entity; report the blocker
 		}
 
-		tr = gi.trace(spot, PLAYER_MINS, PLAYER_MAXS, spot, nullptr, mask);
+		tr = gi.trace(spot, PLAYER_MINS, PLAYER_MAXS, spot, ignoreEnt, mask);
 		if (tr.startSolid && (!tr.ent || !tr.ent->client)) {
 			return tr.ent;
 		}
@@ -417,8 +418,8 @@ SpotIsClearOfSolidsAndPlayers
 Fast occupancy/solid check using your unstuck helper for gnarly brushes.
 ===============
 */
-static bool SpotIsClearOfSolidsAndPlayers(const Vector3& p) {
-	return G_UnsafeSpawnPosition(p, /*check_players=*/true) == nullptr;
+static bool SpotIsClearOfSolidsAndPlayers(const Vector3& p, const gentity_t* ignore = nullptr) {
+	return G_UnsafeSpawnPosition(p, /*check_players=*/true, ignore) == nullptr;
 }
 
 /*
@@ -429,8 +430,13 @@ Telefrag/solid guard, replacing the ad-hoc AABB overlap check.
 */
 static bool SpotIsSafe(gentity_t* spot) {
 	if (!spot) return false;
-	const Vector3 p = spot->s.origin + Vector3{ 0.0f, 0.0f, 9.0f };
-	return SpotIsClearOfSolidsAndPlayers(p);
+	// Match the actual spawn Z offset to avoid false negatives.
+	float zlift = 1.0f; // base lift applied in PutClientOnSpawnPoint
+	if (deathmatch->integer) {
+		zlift += match_allowSpawnPads->integer ? 9.0f : 1.0f;
+	}
+	const Vector3 p = spot->s.origin + Vector3{ 0.0f, 0.0f, zlift };
+	return SpotIsClearOfSolidsAndPlayers(p, spot);
 }
 
 constexpr SpawnFlags SPAWNFLAG_INITIAL = 0x10000_spawnflag; // example value, adjust as needed
@@ -512,8 +518,8 @@ static std::vector<gentity_t*> FilterEligibleSpawns(
 	for (auto* s : spawns) {
 		if (!s) continue;
 
-		// Hard safety: never ignore actual solids/telefrags
-		if (!SpotIsSafe(s))
+		// Hard safety: allow forced spawns to bypass when we're stuck.
+		if (!SpotIsSafe(s) && !force_spawn)
 			continue;
 
 		if (!force_spawn) {
@@ -679,6 +685,40 @@ static gentity_t* SelectTeamSpawnPoint(gentity_t* ent, Team team) {
 	return nullptr;
 }
 
+/*
+===============
+SelectAnyTeamSpawnPoint
+
+Fallback picker for team-based maps when the player has no team or
+team-specific spawns are unavailable.
+===============
+*/
+static gentity_t* SelectAnyTeamSpawnPoint(gentity_t* ent, const Vector3& avoid_point, bool force_spawn) {
+	std::vector<gentity_t*> team_spawns;
+	team_spawns.reserve(level.spawn.red.size() + level.spawn.blue.size());
+	team_spawns.insert(team_spawns.end(), level.spawn.red.begin(), level.spawn.red.end());
+	team_spawns.insert(team_spawns.end(), level.spawn.blue.begin(), level.spawn.blue.end());
+
+	if (team_spawns.empty())
+		return nullptr;
+
+	const bool hasAvoidPoint = static_cast<bool>(avoid_point);
+	auto eligible = FilterEligibleSpawns(team_spawns, avoid_point, force_spawn, ent, hasAvoidPoint);
+
+	if (eligible.empty()) {
+		auto fallback = FilterFallbackSpawns(team_spawns, avoid_point);
+		if (!fallback.empty())
+			return PickRandomly(fallback);
+		return nullptr;
+	}
+
+	auto scoreFn = [ent, avoid_point](gentity_t* s) {
+		return CompositeDangerScore(s, ent, avoid_point);
+	};
+
+	return SelectFromSpawnList(eligible, scoreFn);
+}
+
 // ==============================================================================
 // Deathmatch spawn selection
 // ==============================================================================
@@ -701,7 +741,7 @@ select_spawn_result_t SelectDeathmatchSpawnPoint(
 		if (level.spawn.intermission) {
 			return { level.spawn.intermission, SelectSpawnFlags::Intermission };
 		}
-		return { nullptr, SelectSpawnFlags::Fallback };
+		// No intermission spot available; fall through to normal selection.
 	}
 
 	// Initial spawns: prefer INITIAL-flagged points if any exist
@@ -734,7 +774,14 @@ select_spawn_result_t SelectDeathmatchSpawnPoint(
 
 	// If still none and teams are active, try the team lists
 	if (eligible.empty() && Teams() && fallback_to_ctf_or_start) {
-		if (gentity_t* t = SelectTeamSpawnPoint(ent, ent && ent->client ? ent->client->sess.team : Team::Free))
+		Team team = Team::None;
+		if (ent && ent->client)
+			team = ent->client->sess.team;
+
+		if (gentity_t* t = SelectTeamSpawnPoint(ent, team))
+			return { t, SelectSpawnFlags::Fallback };
+
+		if (gentity_t* t = SelectAnyTeamSpawnPoint(ent, avoid_point, force_spawn))
 			return { t, SelectSpawnFlags::Fallback };
 	}
 
@@ -1016,6 +1063,8 @@ static gentity_t* SelectSingleSpawnPoint(gentity_t* ent) {
 	return spot;
 }
 
+static bool SelectSpectatorSpawnPoint(Vector3& origin, Vector3& angles);
+
 // ==============================================================================
 
 /*
@@ -1032,7 +1081,15 @@ bool SelectSpawnPoint(gentity_t* ent, Vector3& origin, Vector3& angles, bool for
 
 	// Deathmatch
 	if (deathmatch->integer) {
-		const bool wants_player_spawn = ent && ent->client && ClientIsPlaying(ent->client) && !ent->client->eliminated;
+		const bool has_client = ent && ent->client;
+		const bool wants_player_spawn = has_client && ClientIsPlaying(ent->client) && !ent->client->eliminated;
+
+		if (has_client && !ClientIsPlaying(ent->client)) {
+			if (SelectSpectatorSpawnPoint(origin, angles)) {
+				angles[ROLL] = 0.0f;
+				return true;
+			}
+		}
 
 		// Team spawns first when in team modes for active players only
 		if (Teams() && wants_player_spawn) {
@@ -1040,13 +1097,15 @@ bool SelectSpawnPoint(gentity_t* ent, Vector3& origin, Vector3& angles, bool for
 		}
 
 		// FFA spawns if no team spot was chosen
-		if (!spot && ent) {
+		if (!spot) {
+			const Vector3 avoid_point = (ent && ent->client) ? ent->client->lastDeathLocation : Vector3{ 0, 0, 0 };
+			const bool intermission = static_cast<bool>(level.intermission.time);
 			const select_spawn_result_t result = SelectDeathmatchSpawnPoint(
 				ent,
-				ent->client ? ent->client->lastDeathLocation : Vector3{ 0, 0, 0 },
+				avoid_point,
 				force_spawn,
 				true,
-				(!ent->client || !ClientIsPlaying(ent->client)) || (ent->client && ent->client->eliminated),
+				intermission,
 				false
 			);
 
@@ -1140,13 +1199,17 @@ bool SelectSpawnPoint(gentity_t* ent, Vector3& origin, Vector3& angles, bool for
 /*
 ===============
 SelectSpectatorSpawnPoint
-No FindIntermissionPoint call; uses level.intermission set during G_LocateSpawnSpots.
+Uses the intermission camera if available.
 ===============
 */
-static gentity_t* SelectSpectatorSpawnPoint(Vector3 origin, Vector3 angles) {
+static bool SelectSpectatorSpawnPoint(Vector3& origin, Vector3& angles) {
+	if (!level.spawn.intermission)
+		return false;
+
+	FindIntermissionPoint();
 	origin = level.intermission.origin;
 	angles = level.intermission.angles;
-	return level.spawn.intermission;
+	return true;
 }
 
 // ==============================================================================
@@ -1189,7 +1252,8 @@ void MoveClientToFreeCam(gentity_t* ent) {
 	ent->client->ps.gunIndex = 0;
 	ent->client->ps.gunSkin = 0;
 
-	ent->client->ps.stats[STAT_SHOW_STATUSBAR] = 0;
+	if (!ent->client->menu.current)
+		ent->client->ps.stats[STAT_SHOW_STATUSBAR] = 0;
 
 	ent->takeDamage = false;
 	ent->s.modelIndex = 0;
@@ -1358,12 +1422,15 @@ void ClientSpawn(gentity_t* ent) {
 		}
 	}
 
+	auto savedInitialMenu = cl->initialMenu;
+
 	// clear everything but the persistant data
 	savedPers = cl->pers;
 	*cl = gclient_t{};
 	cl->pers = savedPers;
 	cl->resp = savedResp;
 	cl->sess = savedSess;
+	cl->initialMenu = savedInitialMenu;
 
 	// on a new, fresh spawn (always in DM, clear inventory
 	// or new spawns in SP/coop)

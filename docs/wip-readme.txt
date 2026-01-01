@@ -4,7 +4,7 @@
 **WORR** is an advanced gameplay expansion and server mod for **QUAKE II Rerelease**, designed to bring a richer, more dynamic single-player and multiplayer experience.
 It dramatically extends entity and gameplay support, integrates modern competitive systems, and refines the core feel of QUAKE II while preserving its fast-paced essence.
 
-It is a successor to my previous project, [Muff Mode](https://github.com/themuffinator/muffmode).
+It's a successor to my previous project, [Muff Mode](https://github.com/themuffinator/muffmode).
 
 ---
 
@@ -21,8 +21,9 @@ It is a successor to my previous project, [Muff Mode](https://github.com/themuff
 **WORR** transforms QUAKE II’s multiplayer into a flexible, competitive, and feature-rich platform.
 
 #### Gametypes
-- **17 distinct gametypes**, including:
+- **18 competitive gametypes plus Practice Mode**, including:
   - *Duel, Domination, Clan Arena, Freeze Tag* and more
+  - *Practice Mode* for no-score warmups with self-damage disabled
 
 #### Game Modifiers
 - Unique match modifiers such as:

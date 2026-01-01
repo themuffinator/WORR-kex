@@ -626,7 +626,7 @@ G_CalcBlend
 
 static void G_CalcBlend(gentity_t* ent) {
 	GameTime remaining;
-	ent->client->ps.damageBlend = ent->client->ps.screenBlend = {};
+	ent->client->ps.damageBlend = {};
 
 	auto BlendIfExpiring = [&](GameTime end_time, float r, float g, float b, float max_alpha, const char* sound = nullptr) {
 		if (end_time > level.time) {
@@ -1294,7 +1294,7 @@ static void Frenzy_ApplyAmmoRegen(gentity_t* ent) {
 		{ IT_WEAPON_MACHINEGUN | IT_WEAPON_CHAINGUN, IT_AMMO_BULLETS, 10,	AmmoID::Bullets    },
 		{ 0,                        IT_AMMO_GRENADES,   2,					AmmoID::Grenades  },
 		{ IT_WEAPON_RLAUNCHER,      IT_AMMO_ROCKETS,    2,					AmmoID::Rockets  },
-		{ IT_WEAPON_HYPERBLASTER | IT_WEAPON_BFG | IT_WEAPON_IONRIPPER | IT_WEAPON_PLASMABEAM, IT_AMMO_CELLS, 8, AmmoID::Cells },
+		{ IT_WEAPON_HYPERBLASTER | IT_WEAPON_BFG | IT_WEAPON_IONRIPPER | IT_WEAPON_PLASMAGUN | IT_WEAPON_PLASMABEAM, IT_AMMO_CELLS, 8, AmmoID::Cells },
 		{ IT_WEAPON_RAILGUN,        IT_AMMO_SLUGS,      1,					AmmoID::Slugs    },
 		{ IT_WEAPON_PHALANX,        IT_AMMO_MAGSLUG,    2,					AmmoID::MagSlugs  },
 		{ IT_WEAPON_ETF_RIFLE,      IT_AMMO_FLECHETTES,10,					AmmoID::Flechettes },
@@ -1366,7 +1366,7 @@ and right after spawning
 static int scorelimit = -1;
 void ClientEndServerFrame(gentity_t* ent) {
 	// no player exists yet (load game)
-	if (!ent->client->pers.spawned && !level.mapSelector.voteStartTime)
+	if (!ent->client->pers.spawned && !level.mapSelector.voteStartTime && !ent->client->menu.current)
 		return;
 
 	float bobTime = 0, bobTimeRun = 0;

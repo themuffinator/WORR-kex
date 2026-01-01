@@ -126,6 +126,7 @@ static void InitCGame()
 
 	pm_config.n64Physics = std::atoi(cgi.get_configString(CONFIG_N64_PHYSICS)) != 0;
 	pm_config.airAccel = std::atoi(cgi.get_configString(CS_AIRACCEL));
+	pm_config.q3Overbounce = std::atoi(cgi.get_configString(CONFIG_Q3_OVERBOUNCE)) != 0;
 }
 
 /*
@@ -269,6 +270,10 @@ static void CG_ParseConfigString(int32_t i, const char* s)
 
 	case CS_AIRACCEL:
 		pm_config.airAccel = std::atoi(s);
+		break;
+
+	case CONFIG_Q3_OVERBOUNCE:
+		pm_config.q3Overbounce = std::atoi(s) != 0;
 		break;
 
 	default:

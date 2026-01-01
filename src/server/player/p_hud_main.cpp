@@ -677,24 +677,6 @@ static void SetMiniScoreStats(gentity_t* ent) {
 
 	int16_t pos1 = -1, pos2 = -1, own = -1;
 
-	const PlayerMedal medalType = ent->client->pers.medalType;
-
-	// Medal HUD display
-	if (medalType != PlayerMedal::None) {
-		const auto count = ent->client->pers.match.medalCount[static_cast<size_t>(medalType)];
-		if (count >= 2 && static_cast<size_t>(medalType) < awardNames.size()) {
-			const std::string& medalName = awardNames[static_cast<size_t>(medalType)];
-			const std::string medalText = fmt::format("{} (x{})", medalName, count);
-			ent->client->ps.stats[STAT_MEDAL] = 0;
-		}
-		else {
-			ent->client->ps.stats[STAT_MEDAL] = 0;
-		}
-	}
-	else {
-		ent->client->ps.stats[STAT_MEDAL] = 0;
-	}
-
 	if (!isTeamGame) {
 		int16_t ownRank = -1;
 		int16_t other = -1, other2 = -1;
@@ -1302,12 +1284,15 @@ static void SetMatchTimerStats(gentity_t* ent) {
 			s1 = "OVERTIME!";
 		}
 		else if (Game::Has(GameFlags::Rounds)) {
-			if (level.roundState == RoundState::Countdown) {
-				s1 = "COUNTDOWN";
-			}
-			else if (level.roundState == RoundState::In_Progress) {
-				int t2 = (level.roundStateTimer - level.time).milliseconds();
+			const bool roundClockActive = roundTimeLimit->value > 0.f && level.roundStateTimer;
+			if (roundClockActive) {
+				const int t2 = (level.roundStateTimer > level.time)
+					? static_cast<int>((level.roundStateTimer - level.time).milliseconds())
+					: 0;
 				s1 = G_Fmt("{} ({})", TimeString(milliseconds, false, false), TimeString(t2, false, false)).data();
+			}
+			else {
+				s1 = TimeString(milliseconds, false, false);
 			}
 		}
 		else {

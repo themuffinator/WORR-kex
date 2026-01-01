@@ -12,6 +12,8 @@ calls `FinishMatchSetup`, which applies the chosen settings to the server and cl
 
 #include "../g_local.hpp"
 
+extern void OpenJoinMenu(gentity_t* ent);
+
 /*
 ===============
 MatchSetupState
@@ -34,6 +36,9 @@ static void FinishMatchSetup(gentity_t* ent, MatchSetupState* state) {
 
 	gi.TagFree(state);
 	MenuSystem::Close(ent);
+
+	if (ent && ent->client && ent->client->initialMenu.frozen)
+		OpenJoinMenu(ent);
 }
 
 /*
@@ -176,14 +181,9 @@ OpenSetupGametypeMenu
 static void OpenSetupGametypeMenu(gentity_t* ent, MatchSetupState* state) {
 	MenuBuilder b;
 	b.add("Gametype", MenuAlign::Center).spacer();
-	for (auto& [label, value] : std::vector<std::pair<const char*, const char*>>{
-			{"Practice", "practice"},
-			{"Free For All", "ffa"},
-			{"Duel", "duel"},
-			{"Team Deathmatch", "tdm"},
-			{"Domination", "dom"},
-			{"Capture the Flag", "ctf"},
-		}) {
+	for (const auto& mode : GAME_MODES) {
+		const std::string label(mode.long_name);
+		const std::string value(mode.short_name);
 		b.add(label, MenuAlign::Left, [=](gentity_t* e, Menu& m) {
 			state->gametype = value;
 			OpenSetupModifierMenu(e, state);
@@ -210,6 +210,8 @@ void OpenSetupWelcomeMenu(gentity_t* ent) {
 	b.add("Run Custom Config", MenuAlign::Left, [](gentity_t* e, Menu& m) {
 		gi.AddCommandString("exec server.cfg\n");
 		MenuSystem::Close(e);
+		if (e && e->client && e->client->initialMenu.frozen)
+			OpenJoinMenu(e);
 		});
 	MenuSystem::Open(ent, b.build());
 }

@@ -133,7 +133,6 @@ cvar_t* gun_x, * gun_y, * gun_z;
 cvar_t* run_pitch;
 cvar_t* run_roll;
 
-cvar_t* g_airAccelerate;
 cvar_t* g_allowAdmin;
 cvar_t* g_allowCustomSkins;
 cvar_t* g_allowForfeit;
@@ -518,6 +517,18 @@ static void CheckRuleset() {
 
 	check_ruleset = g_ruleset->modifiedCount;
 
+	const int32_t airAccel = GetRulesetAirAccel(game.ruleset);
+	if (pm_config.airAccel != airAccel) {
+		pm_config.airAccel = airAccel;
+		gi.configString(CS_AIRACCEL, G_Fmt("{}", pm_config.airAccel).data());
+	}
+
+	const bool q3Overbounce = RS(Quake3Arena);
+	if (pm_config.q3Overbounce != q3Overbounce) {
+		pm_config.q3Overbounce = q3Overbounce;
+		gi.configString(CONFIG_Q3_OVERBOUNCE, pm_config.q3Overbounce ? "1" : "0");
+	}
+
 	gi.LocBroadcast_Print(PRINT_HIGH, "Ruleset: {}\n", rs_long_name[(int)game.ruleset]);
 }
 
@@ -674,7 +685,7 @@ static void GT_Changes() {
 		}
 	}
 
-	if (!changed || gt == GameType::None)
+	if (!changed)
 		return;
 
 	//gi.Com_PrintFmt("GAMETYPE = {}\n", (int)gt);
@@ -1017,7 +1028,6 @@ static void InitGame() {
 	ai_widow_roof_spawn = gi.cvar("ai_widow_roof_spawn", "0", CVAR_NOFLAGS);
 
 	bot_name_prefix = gi.cvar("bot_name_prefix", "B|", CVAR_NOFLAGS);
-	g_airAccelerate = gi.cvar("g_air_accelerate", "0", CVAR_NOFLAGS);
 	g_allowAdmin = gi.cvar("g_allow_admin", "1", CVAR_NOFLAGS);
 	g_allowCustomSkins = gi.cvar("g_allow_custom_skins", "1", CVAR_NOFLAGS);
 	g_allowForfeit = gi.cvar("g_allow_forfeit", "1", CVAR_NOFLAGS);
@@ -1866,13 +1876,6 @@ static void CheckMinMaxPlayers() {
 }
 
 static void CheckCvars() {
-	if (Cvar_WasModified(g_airAccelerate, game.airAcceleration_modCount)) {
-		// [Paril-KEX] air accel handled by game DLL now, and allow
-		// it to be changed in sp/coop
-		gi.configString(CS_AIRACCEL, G_Fmt("{}", g_airAccelerate->integer).data());
-		pm_config.airAccel = g_airAccelerate->integer;
-	}
-
 	if (Cvar_WasModified(g_gravity, game.gravity_modCount))
 		level.gravity = g_gravity->value;
 
@@ -2239,8 +2242,16 @@ static inline bool G_AnyClientsSpawned() {
 	return false;
 }
 
+static inline bool G_AnyClientsConnected() {
+	for (size_t i = 0; i < game.maxClients; ++i)
+		if (game.clients[i].pers.connected)
+			return true;
+
+	return false;
+}
+
 void G_RunFrame(bool main_loop) {
-	if (main_loop && !G_AnyClientsSpawned())
+	if (main_loop && !G_AnyClientsConnected())
 		return;
 
 	for (size_t i = 0; i < g_framesPerFrame->integer; i++)

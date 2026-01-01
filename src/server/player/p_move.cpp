@@ -205,6 +205,12 @@ float pm_friction = 6;
 float pm_waterFriction = 1;
 float pm_waterSpeed = 400;
 float pm_ladderScale = 0.5f;
+constexpr float kOverbounceDefault = 1.01f;
+constexpr float kOverbounceQ3 = 1.001f;
+
+static inline float PM_GetOverbounceFactor() {
+	return pm_config.q3Overbounce ? kOverbounceQ3 : kOverbounceDefault;
+}
 
 /*
 ==================
@@ -232,7 +238,20 @@ overBounce:1.0f for pure slide; >1.0f adds a small bounce (e.g., 1.01f)
 */
 static inline void PM_ClipVelocity(const Vector3& in, const Vector3& normal, Vector3& out, float overBounce) {
 	// Project the incoming velocity onto the plane normal and remove that component.
-	const float backOff = in.dot(normal) * overBounce;
+	float backOff = in.dot(normal);
+
+	// Quake 3 overbounce bug applies asymmetric scaling to the backoff term.
+	if (pm_config.q3Overbounce) {
+		if (backOff < 0.0f) {
+			backOff *= overBounce;
+		}
+		else {
+			backOff /= overBounce;
+		}
+	}
+	else {
+		backOff *= overBounce;
+	}
 
 	out = in - normal * backOff;
 
@@ -334,9 +353,9 @@ void PM_StepSlideMove_Generic(
 	pm_trace_t traceFunc
 ) {
 	static constexpr int   MAX_BUMPS = 4;
-	static constexpr float OVERBOUNCE = 1.01f;
 	static constexpr float PARALLEL_DOT = 0.99f;   // consider planes effectively parallel
 	static constexpr float NUDGE_DIST = 0.01f;   // small push along plane normal
+	const float overBounce = PM_GetOverbounceFactor();
 
 	// Early out: nothing to do.
 	if (velocity[_X] == 0.0f && velocity[_Y] == 0.0f && velocity[_Z] == 0.0f) {
@@ -366,8 +385,8 @@ void PM_StepSlideMove_Generic(
 		// pick the plane that produces the "smaller" post-clip velocity.
 		if (tr.surface2) {
 			Vector3 clip_a, clip_b;
-			PM_ClipVelocity(velocity, tr.plane.normal, clip_a, OVERBOUNCE);
-			PM_ClipVelocity(velocity, tr.plane2.normal, clip_b, OVERBOUNCE);
+			PM_ClipVelocity(velocity, tr.plane.normal, clip_a, overBounce);
+			PM_ClipVelocity(velocity, tr.plane2.normal, clip_b, overBounce);
 
 			float sum_a = std::fabs(clip_a[0]) + std::fabs(clip_a[1]) + std::fabs(clip_a[2]);
 			float sum_b = std::fabs(clip_b[0]) + std::fabs(clip_b[1]) + std::fabs(clip_b[2]);
@@ -433,7 +452,7 @@ void PM_StepSlideMove_Generic(
 
 		// Reclip velocity so it is parallel to all planes hit so far.
 		for (i = 0; i < numPlanes; ++i) {
-			PM_ClipVelocity(velocity, planes[i], velocity, OVERBOUNCE);
+			PM_ClipVelocity(velocity, planes[i], velocity, overBounce);
 
 			// Ensure we are not moving into any other plane.
 			int j = 0;
@@ -1032,7 +1051,7 @@ static void PM_CatagorizePosition() {
 
 			// Compute impact delta for fall/land handling
 			Vector3 clippedVelocity;
-			PM_ClipVelocity(pml.velocity, pm->groundPlane.normal, clippedVelocity, 1.01f);
+			PM_ClipVelocity(pml.velocity, pm->groundPlane.normal, clippedVelocity, PM_GetOverbounceFactor());
 			pm->impactDelta = pml.startVelocity[2] - clippedVelocity[2];
 
 			pm->s.pmFlags |= PMF_ON_GROUND;

@@ -30,4 +30,6 @@ namespace Commands {
 	// Helpers exposed for gameplay systems to trigger core client commands.
 	void Help(gentity_t* ent, const CommandArgs& args);
 	void Score(gentity_t* ent, const CommandArgs& args);
+	bool CheckMyMapAllowed(gentity_t* ent);
+	bool QueueMyMapRequest(gentity_t* ent, std::string_view mapName, const std::vector<std::string>& flagArgs);
 }

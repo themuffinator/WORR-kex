@@ -30,6 +30,7 @@
 struct pm_config_t {
 	int32_t		airAccel = 0;
 	bool		n64Physics = false;
+	bool		q3Overbounce = false;
 };
 
 extern pm_config_t pm_config;
@@ -77,6 +78,8 @@ enum {
 	CONFIG_HEALTH_BAR_NAME, // active health bar name
 
 	CONFIG_STORY,
+	// [Paril-KEX] if 1, Quake 3 overbounce physics apply
+	CONFIG_Q3_OVERBOUNCE,
 
 	CONFIG_LAST
 };
@@ -116,8 +119,6 @@ enum powerup_t : uint8_t {
 	POWERUP_SILENCER,
 	POWERUP_REBREATHER,
 	POWERUP_ENVIROSUIT,
-	POWERUP_EMPATHY_SHIELD,
-	POWERUP_ANTIGRAV_BELT,
 	POWERUP_ADRENALINE,
 	POWERUP_IR_GOGGLES,
 	POWERUP_DOUBLE,
@@ -125,8 +126,6 @@ enum powerup_t : uint8_t {
 	POWERUP_SPHERE_HUNTER,
 	POWERUP_SPHERE_DEFENDER,
 	POWERUP_DOPPELGANGER,
-
-	POWERUP_BALL,
 
 	POWERUP_FLASHLIGHT,
 	POWERUP_COMPASS,
@@ -137,7 +136,11 @@ enum powerup_t : uint8_t {
 	POWERUP_TECH_AUTODOC,
 
 	POWERUP_REGENERATION,
+	POWERUP_EMPATHY_SHIELD,
+	POWERUP_ANTIGRAV_BELT,
 	POWERUP_SPAWN_PROTECTION,
+
+	POWERUP_BALL,
 
 	POWERUP_MAX
 };
@@ -233,7 +236,6 @@ enum player_stat_t {
 	STAT_MATCH_STATE = 29,
 	STAT_CROSSHAIR_ID_VIEW_COLOR = 30,
 	STAT_TEAMPLAY_INFO = 31,
-	STAT_GAMEPLAY_CARRIED,
 
 	// [Kex] More stats for weapon wheel
 	STAT_WEAPONS_OWNED_1 = 32,
@@ -276,10 +278,10 @@ enum player_stat_t {
 	STAT_MONSTER_COUNT,
 	STAT_ROUND_NUMBER,
 
-	STAT_MEDAL,
+	STAT_GAMEPLAY_CARRIED,
 
 	// don't use; just for verification
 	STAT_LAST
 };
 
-static_assert(STAT_LAST <= MAX_STATS + 1, "stats list overflow");
+static_assert(STAT_LAST <= MAX_STATS, "stats list overflow");

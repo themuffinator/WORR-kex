@@ -806,6 +806,8 @@ void ED_CallSpawn(gentity_t* ent) {
 		ent->className = GetItemByIndex(IT_AMMO_FLECHETTES)->className;
 	else if (!strcmp(ent->className, "weapon_heatbeam"))
 		ent->className = GetItemByIndex(IT_WEAPON_PLASMABEAM)->className;
+	else if (!strcmp(ent->className, "weapon_plasmarifle"))
+		ent->className = GetItemByIndex(IT_WEAPON_PLASMAGUN)->className;
 	else if (!strcmp(ent->className, "item_haste"))
 		ent->className = GetItemByIndex(IT_POWERUP_HASTE)->className;
 	else if (RS(Quake3Arena) && !strcmp(ent->className, "weapon_supershotgun"))
@@ -845,11 +847,6 @@ void ED_CallSpawn(gentity_t* ent) {
 
 	if (!ent->className) {
 		worr::Logf(worr::LogLevel::Warn, "{}: entity missing classname before map fixes {}; skipping", __FUNCTION__, BuildMapEntityContext(ent));
-		return;
-	}
-
-	if (!ent->model) {
-		worr::Logf(worr::LogLevel::Warn, "{}: entity missing model before map fixes {}; skipping", __FUNCTION__, BuildMapEntityContext(ent));
 		return;
 	}
 
@@ -2849,12 +2846,11 @@ void SP_worldspawn(gentity_t* ent) {
 	// statusbar prog
 	G_InitStatusbar();
 
-	// [Paril-KEX] air accel handled by game DLL now, and allow
-	// it to be changed in sp/coop
-	gi.configString(CS_AIRACCEL, G_Fmt("{}", g_airAccelerate->integer).data());
-	pm_config.airAccel = g_airAccelerate->integer;
-
-	game.airAcceleration_modCount = g_airAccelerate->modifiedCount;
+	// Air acceleration is ruleset-driven.
+	pm_config.airAccel = GetRulesetAirAccel(game.ruleset);
+	gi.configString(CS_AIRACCEL, G_Fmt("{}", pm_config.airAccel).data());
+	pm_config.q3Overbounce = RS(Quake3Arena);
+	gi.configString(CONFIG_Q3_OVERBOUNCE, pm_config.q3Overbounce ? "1" : "0");
 
 	//---------------
 

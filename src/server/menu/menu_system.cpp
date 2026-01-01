@@ -48,6 +48,7 @@ void MenuSystem::Open(gentity_t* ent, std::unique_ptr<Menu> menu) {
 
 	auto& menuState = ent->client->menu;
 	ent->client->menu.current = std::move(menu);
+	ent->client->menu_sign = 0;
 
 	menuState.previousStatusBar = ent->client->ps.stats[STAT_SHOW_STATUSBAR];
 	menuState.previousShowScores = ent->client->showScores;

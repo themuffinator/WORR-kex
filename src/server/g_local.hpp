@@ -69,6 +69,7 @@ enum class Weapon : uint8_t {
 	RocketLauncher,
 	HyperBlaster,
 	IonRipper,
+	PlasmaGun,
 	PlasmaBeam,
 	Thunderbolt,
 	Railgun,
@@ -97,6 +98,7 @@ const std::array<std::string, static_cast<uint8_t>(Weapon::Total)> weaponAbbrevi
 	"RL",     // Weapon::RocketLauncher
 	"HB",     // Weapon::HyperBlaster
 	"IR",     // Weapon::IonRipper
+	"PG",     // Weapon::PlasmaGun
 	"PB",     // Weapon::PlasmaBeam
 	"TB",     // Weapon::Thunderbolt
 	"RG",     // Weapon::Railgun
@@ -139,6 +141,12 @@ private:
 };
 #define RS( x ) game.ruleset == Ruleset::x
 #define notRS( x ) game.ruleset != Ruleset::x
+
+// Quake 1 ruleset uses air acceleration; other rulesets keep legacy behavior.
+constexpr int32_t kQuake1AirAccel = 10;
+constexpr int32_t GetRulesetAirAccel(Ruleset ruleset) {
+	return ruleset == Ruleset::Quake1 ? kQuake1AirAccel : 0;
+}
 
 constexpr size_t NUM_ALIASES = 4;
 constexpr std::array<std::array<std::string_view, NUM_ALIASES>, Ruleset::Count()> rs_short_name = { {
@@ -217,7 +225,7 @@ enum class GameType : uint8_t {
 	Total
 };
 
-constexpr GameType GT_FIRST = GameType::FreeForAll;
+constexpr GameType GT_FIRST = GameType::None;
 constexpr GameType GT_LAST = GameType::Gauntlet;
 
 enum class GameFlags : uint32_t {
@@ -257,7 +265,7 @@ struct GameTypeInfo {
 // A single, constant array of GameTypeInfo structs.
 // All data is defined in one place, making it easy to add or modify gametypes.
 constexpr std::array<GameTypeInfo, static_cast<size_t>(GameType::Total)> GAME_MODES = { {
-	{GameType::None,           "cmp",      "CMP",      "Campaign",            "campaign",	GameFlags::None},
+	{GameType::None,           "practice", "PRACTICE", "Practice Mode",       "practice",	GameFlags::None},
 	{GameType::FreeForAll,     "ffa",      "FFA",      "Free For All",        "ffa",		GameFlags::Frags},
 	{GameType::Duel,           "duel",     "DUEL",     "Duel",                "tournament",	GameFlags::OneVOne | GameFlags::Frags},
 	{GameType::TeamDeathmatch, "tdm",      "TDM",      "Team Deathmatch",     "team",		GameFlags::Teams | GameFlags::Frags},
@@ -617,9 +625,6 @@ inline bool AreStringsEqualIgnoreCase(std::string_view a, std::string_view b) {
 	*/
 	inline std::optional<GameType> FromString(std::string_view name) {
 	for (const auto& mode_info : GAME_MODES) {
-	if (mode_info.type == GameType::None)
-	continue;
-
 	if (AreStringsEqualIgnoreCase(name, mode_info.short_name) ||
 	AreStringsEqualIgnoreCase(name, mode_info.long_name) ||
 	AreStringsEqualIgnoreCase(name, mode_info.spawn_name)) {
@@ -1578,6 +1583,7 @@ enum item_id_t : uint8_t {
 	IT_WEAPON_RLAUNCHER,
 	IT_WEAPON_HYPERBLASTER,
 	IT_WEAPON_IONRIPPER,
+	IT_WEAPON_PLASMAGUN,
 	IT_WEAPON_PLASMABEAM,
 	IT_WEAPON_THUNDERBOLT,
 	IT_WEAPON_RAILGUN,
@@ -1883,6 +1889,8 @@ enum class ModID : uint8_t {
 	Hit,
 	ShooterBlaster,
 	IonRipper,
+	PlasmaGun,
+	PlasmaGun_Splash,
 	Phalanx,
 	BrainTentacle,
 	BlastOff,
@@ -1970,6 +1978,8 @@ const std::array<mod_remap, static_cast<uint8_t>(ModID::Total)> modr = { {
 	{ ModID::Hit, Weapon::None, "Hit" },
 	{ ModID::ShooterBlaster, Weapon::None, "Target Blaster" },
 	{ ModID::IonRipper, Weapon::IonRipper, "Ion Ripper" },
+	{ ModID::PlasmaGun, Weapon::PlasmaGun, "Plasma Gun" },
+	{ ModID::PlasmaGun_Splash, Weapon::PlasmaGun, "Plasma Gun Splash" },
 	{ ModID::Phalanx, Weapon::Phalanx, "Phalanx" },
 	{ ModID::BrainTentacle, Weapon::None, "Brain Tentacle" },
 	{ ModID::BlastOff, Weapon::None, "Blast Off" },
@@ -2386,7 +2396,7 @@ struct GameLocals {
 	bool autoSaved = false;
 
 	// [Paril-KEX]
-	uint32_t airAcceleration_modCount = 0, gravity_modCount = 0;
+	uint32_t gravity_modCount = 0;
 	std::array<LevelEntry, MAX_LEVELS_PER_UNIT> levelEntries{};
 	int32_t maxLagOrigins = 0;
 	Vector3* lagOrigins{}; // maxClients * maxLagOrigins
@@ -3690,7 +3700,6 @@ extern cvar_t* gun_x, * gun_y, * gun_z;
 extern cvar_t* run_pitch;
 extern cvar_t* run_roll;
 
-extern cvar_t* g_airAccelerate;
 extern cvar_t* g_allowAdmin;
 extern cvar_t* g_allowCustomSkins;
 extern cvar_t* g_allowForfeit;
@@ -4342,11 +4351,12 @@ gentity_t* fire_rocket(gentity_t* self, const Vector3& start, const Vector3& dir
 void fire_rail(gentity_t* self, const Vector3& start, const Vector3& aimDir, int damage, int kick);
 void fire_bfg(gentity_t* self, const Vector3& start, const Vector3& dir, int damage, int speed, float splashRadius);
 void fire_ionripper(gentity_t* self, const Vector3& start, const Vector3& aimDir, int damage, int speed, Effect effect);
+void fire_plasmagun(gentity_t* self, const Vector3& start, const Vector3& dir, int damage, int speed, float splashRadius, int splashDamage);
 void fire_heat(gentity_t* self, const Vector3& start, const Vector3& dir, int damage, int speed, float splashRadius, int splashDamage, float turnFraction);
 void fire_phalanx(gentity_t* self, const Vector3& start, const Vector3& dir, int damage, int speed, float splashRadius, int splashDamage);
 void fire_trap(gentity_t* self, const Vector3& start, const Vector3& aimDir, int speed);
 void fire_plasmabeam(gentity_t* self, const Vector3& start, const Vector3& aimDir, const Vector3& offset, int damage, int kick, bool monster);
-void fire_thunderbolt(gentity_t* self, const Vector3& start, const Vector3& aimDir, const Vector3& offset, int damage, int kick, MeansOfDeath mod, bool playFireSound);
+bool fire_thunderbolt(gentity_t* self, const Vector3& start, const Vector3& aimDir, const Vector3& offset, int damage, int kick, MeansOfDeath mod, int damageMultiplier);
 void fire_disruptor(gentity_t* self, const Vector3& start, const Vector3& dir, int damage, int speed, gentity_t* enemy);
 void fire_flechette(gentity_t* self, const Vector3& start, const Vector3& dir, int damage, int speed, int kick);
 void fire_prox(gentity_t* self, const Vector3& start, const Vector3& aimDir, int damage, int speed);
@@ -5311,7 +5321,8 @@ struct gclient_t {
 	struct {
 		GameTime		delay = 0_ms;
 		bool		shown = false;
-		bool		closure = false;
+		bool		frozen = false;
+		bool		hostSetupDone = false;
 	} initialMenu;
 
 	GameTime			lastPowerupMessageTime = 0_ms;
@@ -6175,8 +6186,11 @@ inline void NextMenuItem(gentity_t* ent) {
 }
 
 inline void ActivateSelectedMenuItem(gentity_t* ent) {
-	if (ent && ent->client && ent->client->menu.current)
-		ent->client->menu.current->Select(ent);
+	if (!ent || !ent->client)
+		return;
+	auto menu = ent->client->menu.current;
+	if (menu)
+		menu->Select(ent);
 }
 
 inline void DirtyAllMenus() {
@@ -6234,6 +6248,7 @@ Menu Entry Points
 */
 void OpenJoinMenu(gentity_t* ent);
 void OpenAdminSettingsMenu(gentity_t* ent);
+void OpenMyMapMenu(gentity_t* ent);
 void OpenVoteMenu(gentity_t* ent);
 void OpenCallvoteMenu(gentity_t* ent);
 void OpenHostInfoMenu(gentity_t* ent);

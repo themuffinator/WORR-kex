@@ -66,6 +66,7 @@ void Weapon_HyperBlaster(gentity_t* ent);
 void Weapon_IonRipper(gentity_t* ent);
 void Weapon_Machinegun(gentity_t* ent);
 void Weapon_Phalanx(gentity_t* ent);
+void Weapon_PlasmaGun(gentity_t* ent);
 void Weapon_PlasmaBeam(gentity_t* ent);
 void Weapon_ProxLauncher(gentity_t* ent);
 void Weapon_Railgun(gentity_t* ent);
@@ -733,6 +734,38 @@ model="models/weapons/g_boom/tris.md2"
 		/* quantityWarn */ 30
 	},
 
+/*QUAKED weapon_plasmagun (.3 .3 1) (-16 -16 -16) (16 16 16) TRIGGER_SPAWN x x SUSPENDED x x x x NOT_EASY NOT_MEDIUM NOT_HARD NOT_DM NOT_COOP
+-------- MODEL FOR RADIANT ONLY - DO NOT SET THIS AS A KEY --------
+model="models/weapons/g_plasmr/tris.md2"
+*/
+	{
+		/* id */ IT_WEAPON_PLASMAGUN,
+		/* className */ "weapon_plasmagun",
+		/* pickup */ Pickup_Weapon,
+		/* use */ Use_Weapon,
+		/* drop */ Drop_Weapon,
+		/* weaponThink */ Weapon_PlasmaGun,
+		/* pickupSound */ "misc/w_pkup.wav",
+		/* worldModel */ "models/weapons/g_plasmr/tris.md2",
+		/* worldModelFlags */ EF_ROTATE | EF_BOB,
+		/* viewModel */ "models/weapons/v_plasmr/tris.md2",
+		/* icon */ "w_plasmarifle",
+		/* useName */  "Plasma Gun",
+		/* pickupName */  "Plasma Gun",
+		/* pickupNameDefinitive */ "Plasma Gun",
+		/* quantity */ 1,
+		/* ammo */ IT_AMMO_CELLS,
+		/* chain */ IT_WEAPON_HYPERBLASTER,
+		/* flags */ IF_WEAPON | IF_STAY_COOP,
+		/* viewWeaponModel */ "#w_plasmarifle.md2",
+		/* armorInfo */ nullptr,
+		/* tag */ static_cast<int>(AmmoID::Cells),
+		/* highValue*/ HighValueItems::None,
+		/* precaches */ "weapons/plsmfire.wav weapons/plsmexpl.wav weapons/plsmhumm.wav sprites/s_pls1.sp2 sprites/s_pls2.sp2",
+		/* sortID */ 0,
+		/* quantityWarn */ 30
+	},
+
 /*QUAKED weapon_plasmabeam (.3 .3 1) (-16 -16 -16) (16 16 16) TRIGGER_SPAWN x x SUSPENDED x x x x NOT_EASY NOT_MEDIUM NOT_HARD NOT_DM NOT_COOP
 -------- MODEL FOR RADIANT ONLY - DO NOT SET THIS AS A KEY --------
 model="models/weapons/g_beamer/tris.md2"
@@ -779,7 +812,7 @@ model="models/weapons/g_light/tris.md2"
 		/* pickupSound */ "misc/w_pkup.wav",
 		/* worldModel */ "models/weapons/g_light/tris.md2",
 		/* worldModelFlags */ EF_ROTATE | EF_BOB,
-		/* viewModel */ "models/weapons/v_beamer/tris.md2",
+		/* viewModel */ "models/weapons/v_light/tris.md2",
 		/* icon */ "w_heatbeam",
 		/* useName */  "Thunderbolt",
 		/* pickupName */  "Thunderbolt",
@@ -788,11 +821,11 @@ model="models/weapons/g_light/tris.md2"
 		/* ammo */ IT_AMMO_CELLS,
 		/* chain */ IT_WEAPON_THUNDERBOLT,
 		/* flags */ IF_WEAPON | IF_STAY_COOP,
-		/* viewWeaponModel */ "#w_plasma.md2",
+		/* viewWeaponModel */ "#w_light.md2",
 		/* armorInfo */ nullptr,
 		/* tag */ static_cast<int>(AmmoID::Cells),
 		/* highValue*/ HighValueItems::None,
-		/* precaches */ "weapons/lstart.wav",
+		/* precaches */ "weapons/lstart.wav weapons/lhit.wav",
 		/* sortID */ 0,
 		/* quantityWarn */ 50
 	},

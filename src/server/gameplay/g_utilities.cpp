@@ -526,7 +526,9 @@ void TouchTriggers(gentity_t* ent) {
 			if (!strstr(hit->className, "teleport"))
 				continue;
 
-		hit->touch(hit, ent, null_trace, true);
+		trace_t tr = null_trace;
+		tr.ent = hit;
+		hit->touch(hit, ent, tr, true);
 	}
 }
 
@@ -741,22 +743,22 @@ void AssignPlayerSkin(gentity_t* ent, const std::string& skin) {
 		modelPath = "male/";
 	}
 
-	const char* teamColor = nullptr;
+	const char* teamSkin = nullptr;
 	switch (ent->client->sess.team) {
 	case Team::Red:
-		teamColor = "red";
+		teamSkin = TEAM_RED_SKIN;
 		break;
 	case Team::Blue:
-		teamColor = "blue";
+		teamSkin = TEAM_BLUE_SKIN;
 		break;
 	default:
-		teamColor = nullptr;
+		teamSkin = nullptr;
 		break;
 	}
 
 	std::string finalSkin;
-	if (teamColor) {
-		finalSkin = G_Fmt("{}\\{}{}\\default", ent->client->sess.netName, modelPath, teamColor);
+	if (teamSkin) {
+		finalSkin = G_Fmt("{}\\{}{}\\default", ent->client->sess.netName, modelPath, teamSkin);
 	}
 	else {
 		finalSkin = G_Fmt("{}\\{}\\default", ent->client->sess.netName, cleanSkin);
@@ -1136,6 +1138,8 @@ ScoringIsDisabled
 bool ScoringIsDisabled() {
 	if (level.matchState != MatchState::In_Progress)
 		return true;
+	if (Game::Is(GameType::None))
+		return true;
 	if (CombatIsDisabled())
 		return true;
 	if (Game::Has(GameFlags::Rounds) && level.roundState != RoundState::In_Progress)
@@ -1173,7 +1177,7 @@ GametypeIndexToString
 std::string_view GametypeIndexToString(GameType gametype) {
 	const auto type_value = static_cast<int>(gametype);
 
-	if (type_value <= static_cast<int>(GameType::None))
+	if (type_value < static_cast<int>(GameType::None) || type_value >= static_cast<int>(GameType::Total))
 		return "NONE";
 
 	return Game::GetInfo(type_value).short_name_upper;
@@ -1188,8 +1192,8 @@ std::string GametypeOptionList() {
 	std::stringstream ss;
 	ss << "<";
 
-	// Iterate through all gametypes, skipping the default 'None' type.
-	for (size_t i = static_cast<size_t>(GameType::FreeForAll); i < GAME_MODES.size(); ++i) {
+	// Iterate through all gametypes, including Practice Mode.
+	for (size_t i = static_cast<size_t>(GameType::None); i < GAME_MODES.size(); ++i) {
 		const auto& info = Game::GetInfo(static_cast<GameType>(i));
 		ss << info.short_name;
 		if (i < GAME_MODES.size() - 1) {
@@ -1627,7 +1631,7 @@ static void HandleLeadChanges() {
 
 		if (newRank == 0) {
 			// Now in first place
-			if (oldTied != newTied)
+			if (previousRank != 0 || oldTied != newTied)
 				AnnouncerSound(ec, newTied ? "lead_tied" : "lead_taken");
 
 			// Update followers

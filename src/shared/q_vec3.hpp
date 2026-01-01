@@ -29,10 +29,12 @@ using nullptr_t = std::nullptr_t;
 struct Vector3 {
 	static constexpr float kDivisionEpsilon = 1.0e-6f;
 
-	std::array<float, 3> components{ 0.0f, 0.0f, 0.0f };
-	float& x;
-	float& y;
-	float& z;
+	// NOTE: This type is used in engine/shared structs that are often
+	// memset/memcpy'd. Keep it POD-like (no references/pointers to internal
+	// storage) so zeroing memory yields a valid vector.
+	float x = 0.0f;
+	float y = 0.0f;
+	float z = 0.0f;
 
 	/*
 	=============
@@ -41,15 +43,18 @@ struct Vector3 {
 	Clamps divisors away from zero while asserting in debug builds.
 	=============
 	*/
-	[[nodiscard]] static inline float SafeDivisor(const float divisor) {
+	[[nodiscard]] static constexpr float SafeDivisor(float divisor) {
 		const bool near_zero = divisor > -kDivisionEpsilon && divisor < kDivisionEpsilon;
 
 		#ifndef NDEBUG
-		assert(!near_zero && "Vector3 division by zero or near-zero divisor");
+		if (!std::is_constant_evaluated()) {
+			assert(!near_zero && "Vector3 division by zero or near-zero divisor");
+		}
 		#endif
 
-		if (near_zero)
+		if (near_zero) {
 			return divisor >= 0.0f ? kDivisionEpsilon : -kDivisionEpsilon;
+		}
 
 		return divisor;
 	}
@@ -58,10 +63,10 @@ struct Vector3 {
 	=============
 	Vector3
 
-	Constructs a zero vector with component references bound to the backing array.
+	Constructs a zero vector.
 	=============
 	*/
-	constexpr Vector3() : components{ 0.0f, 0.0f, 0.0f }, x(components[0]), y(components[1]), z(components[2]) {}
+	constexpr Vector3() = default;
 
 	/*
 	=============
@@ -70,48 +75,13 @@ struct Vector3 {
 	Constructs a vector with explicit components.
 	=============
 	*/
-	constexpr Vector3(float xIn, float yIn, float zIn) : components{ xIn, yIn, zIn }, x(components[0]), y(components[1]), z(components[2]) {}
+	constexpr Vector3(float xIn, float yIn, float zIn) : x(xIn), y(yIn), z(zIn) {}
 
-	/*
-	=============
-	Vector3
-
-	Copy constructs a vector while rebinding component references to local storage.
-	=============
-	*/
-	constexpr Vector3(const Vector3& other) : components{ other.components }, x(components[0]), y(components[1]), z(components[2]) {}
-
-	/*
-	=============
-	Vector3
-
-	Move constructs a vector while rebinding component references to local storage.
-	=============
-	*/
-	constexpr Vector3(Vector3&& other) noexcept : components{ std::move(other.components) }, x(components[0]), y(components[1]), z(components[2]) {}
-
-	/*
-	=============
-	operator=
-
-	Copy assigns component values.
-	=============
-	*/
-	constexpr Vector3& operator=(const Vector3& other) {
-		components = other.components;
-		return *this;
+	[[nodiscard]] constexpr float* data() noexcept {
+		return &x;
 	}
-
-	/*
-	=============
-	operator=
-
-	Move assigns component values.
-	=============
-	*/
-	constexpr Vector3& operator=(Vector3&& other) noexcept {
-		components = std::move(other.components);
-		return *this;
+	[[nodiscard]] constexpr const float* data() const noexcept {
+		return &x;
 	}
 
 	/*
@@ -122,7 +92,11 @@ struct Vector3 {
 	=============
 	*/
 	[[nodiscard]] constexpr const float& operator[](size_t i) const {
-		return components.at(i);
+		if (i >= 3) {
+			throw std::out_of_range("Vector3 index out of range");
+		}
+
+		return data()[i];
 	}
 
 	/*
@@ -133,7 +107,11 @@ struct Vector3 {
 	=============
 	*/
 	[[nodiscard]] constexpr float& operator[](size_t i) {
-		return components.at(i);
+		if (i >= 3) {
+			throw std::out_of_range("Vector3 index out of range");
+		}
+
+		return data()[i];
 	}
 	// comparison
 	[[nodiscard]] constexpr bool equals(const Vector3& v) const {
@@ -189,8 +167,8 @@ struct Vector3 {
 	Divides component-wise by another vector using guarded divisors.
 	=============
 	*/
-	[[nodiscard]] inline Vector3 operator/(const Vector3& v) const {
-	return { x / SafeDivisor(v.x), y / SafeDivisor(v.y), z / SafeDivisor(v.z) };
+	[[nodiscard]] constexpr Vector3 operator/(const Vector3& v) const {
+		return { x / SafeDivisor(v.x), y / SafeDivisor(v.y), z / SafeDivisor(v.z) };
 	}
 	template<typename T, typename = std::enable_if_t<std::is_floating_point_v<T> || std::is_integral_v<T>>>
 	/*
@@ -200,9 +178,9 @@ struct Vector3 {
 	Divides each component by a scalar using a guarded divisor.
 	=============
 	*/
-	[[nodiscard]] inline Vector3 operator/(const T& v) const {
-	const float divisor = SafeDivisor(static_cast<float>(v));
-	return { static_cast<float>(x / divisor), static_cast<float>(y / divisor), static_cast<float>(z / divisor) };
+	[[nodiscard]] constexpr Vector3 operator/(const T& v) const {
+		const float divisor = SafeDivisor(static_cast<float>(v));
+		return { static_cast<float>(x / divisor), static_cast<float>(y / divisor), static_cast<float>(z / divisor) };
 	}
 	template<typename T, typename = std::enable_if_t<std::is_floating_point_v<T> || std::is_integral_v<T>>>
 	[[nodiscard]] constexpr Vector3 operator*(const T& v) const {
@@ -266,6 +244,11 @@ struct Vector3 {
 		};
 	}
 };
+
+static_assert(sizeof(Vector3) == sizeof(float) * 3);
+static_assert(alignof(Vector3) == alignof(float));
+static_assert(std::is_standard_layout_v<Vector3>);
+static_assert(std::is_trivially_copyable_v<Vector3>);
 
 constexpr Vector3 vec3_origin{};
 

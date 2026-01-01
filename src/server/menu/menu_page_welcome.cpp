@@ -23,6 +23,43 @@ extern void OpenMatchInfoMenu(gentity_t* ent);
 extern void OpenPlayerMatchStatsMenu(gentity_t* ent);
 extern void OpenAdminSettingsMenu(gentity_t* ent);
 extern void OpenVoteMenu(gentity_t* ent);
+extern void OpenMyMapMenu(gentity_t* ent);
+void OpenJoinMenu(gentity_t* ent);
+
+static void ReleaseWelcomeFreeze(gentity_t* ent) {
+	if (!ent || !ent->client)
+		return;
+
+	if (!ent->client->initialMenu.frozen)
+		return;
+
+	ent->client->initialMenu.frozen = false;
+	ent->client->initialMenu.shown = true;
+	ent->client->initialMenu.delay = 0_sec;
+	ent->client->initialMenu.hostSetupDone = true;
+}
+
+static void TryJoinTeam(gentity_t* ent, Team team) {
+	if (SetTeam(ent, team, false, false, false))
+		ReleaseWelcomeFreeze(ent);
+}
+
+static void SelectSpectate(gentity_t* ent) {
+	if (!ent || !ent->client)
+		return;
+
+	const bool wasFrozen = ent->client->initialMenu.frozen;
+	const bool wasSpectator = !ClientIsPlaying(ent->client);
+	const bool changed = SetTeam(ent, Team::Spectator, false, false, false);
+
+	if (changed || wasSpectator) {
+		ReleaseWelcomeFreeze(ent);
+		if (!changed)
+			CloseActiveMenu(ent);
+		else if (!wasFrozen)
+			OpenJoinMenu(ent);
+	}
+}
 
 static void AddJoinOptions(MenuBuilder& builder, gentity_t* ent, int maxPlayers) {
 	uint8_t redCount = 0, blueCount = 0, freeCount = 0, queueCount = 0;
@@ -41,10 +78,10 @@ static void AddJoinOptions(MenuBuilder& builder, gentity_t* ent, int maxPlayers)
 
 	if (Teams()) {
 		builder.add(fmt::format("Join Red ({}/{})", redCount, maxPlayers / 2), MenuAlign::Left, [](gentity_t* e, Menu&) {
-			SetTeam(e, Team::Red, false, false, false);
+			TryJoinTeam(e, Team::Red);
 			});
 		builder.add(fmt::format("Join Blue ({}/{})", blueCount, maxPlayers / 2), MenuAlign::Left, [](gentity_t* e, Menu&) {
-			SetTeam(e, Team::Blue, false, false, false);
+			TryJoinTeam(e, Team::Blue);
 			});
 	}
 	else {
@@ -55,7 +92,7 @@ static void AddJoinOptions(MenuBuilder& builder, gentity_t* ent, int maxPlayers)
 			joinText = fmt::format("Join Match ({}/{})", freeCount, Game::Has(GameFlags::OneVOne) ? 2 : maxPlayers);
 
 		builder.add(joinText, MenuAlign::Left, [](gentity_t* e, Menu&) {
-			SetTeam(e, Team::Free, false, false, false);
+			TryJoinTeam(e, Team::Free);
 			});
 	}
 }
@@ -75,15 +112,29 @@ void OpenJoinMenu(gentity_t* ent) {
 	builder.add(G_Fmt("{} v{}", worr::version::kGameTitle, worr::version::kGameVersion).data(), MenuAlign::Center).spacer();
 	builder.add("---", MenuAlign::Center).spacer().spacer();
 
-	AddJoinOptions(builder, ent, maxPlayers);
+	const bool welcomeFrozen = ent->client->initialMenu.frozen;
+	const bool isPlaying = ClientIsPlaying(ent->client);
+	const bool showJoinOptions = welcomeFrozen || !isPlaying;
+	const bool showSpectate = welcomeFrozen || isPlaying;
 
-	builder.add("Spectate", MenuAlign::Left, [](gentity_t* e, Menu&) {
-		SetTeam(e, Team::Spectator, false, false, false);
-		});
+	if (showJoinOptions)
+		AddJoinOptions(builder, ent, maxPlayers);
+
+	if (showSpectate) {
+		builder.add("Spectate", MenuAlign::Left, [](gentity_t* e, Menu&) {
+			SelectSpectate(e);
+			});
+	}
 
 	if (g_allowVoting->integer && (ClientIsPlaying(ent->client) || (!ClientIsPlaying(ent->client) && g_allowSpecVote->integer))) {
 		builder.add("Call a Vote", MenuAlign::Left, [](gentity_t* e, Menu&) {
 			OpenCallvoteMenu(e);
+			});
+	}
+
+	if (g_maps_mymap && g_maps_mymap->integer && (!g_allowMymap || g_allowMymap->integer)) {
+		builder.add("MyMap", MenuAlign::Left, [](gentity_t* e, Menu&) {
+			OpenMyMapMenu(e);
 			});
 	}
 

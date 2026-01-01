@@ -70,7 +70,7 @@
         <tr>
           <td><code>gametype</code></td>
           <td>integer</td>
-          <td>Default gametype index loaded when the map boots.</td>
+          <td>Default gametype index loaded when the map boots (`0` is Practice Mode for no-score warmups with self-damage disabled).</td>
           <td><strong>Gates auto-rotation.</strong> Used when a cycle entry omits overrides.</td>
         </tr>
         <tr>
@@ -106,7 +106,7 @@
       "duel": true,
       "min": 2,
       "max": 8,
-      "gametype": 0,
+      "gametype": 1,
       "ruleset": 0,
       "scorelimit": 30,
       "timelimit": 15,
@@ -173,7 +173,7 @@ q2dm1 q2dm2, q2dm3</pre>
       <li><code>+ht</code>: health</li>
       <li><code>+bfg</code>: BFG</li>
       <li><code>+fd</code>: fall damage</li>
-      <li><code>+sd</code>: self damage</li>
+      <li><code>+sd</code>: self-damage</li>
     </ul>
     <p>Metadata gates eligibility: MyMap will reject BSPs whose <code>min</code>/<code>max</code> bracket fails or whose gametype flags do not match the current playlist.</p>
   </section>

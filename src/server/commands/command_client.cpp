@@ -517,6 +517,11 @@ Enables administrative permissions when the correct password is supplied.
 
 			if (deathmatch->integer) {
 				if (Vote_Menu_Active(ent)) return;
+				if (cl->initialMenu.frozen) {
+					if (!cl->menu.current && !cl->menu.restoreStatusBar)
+						OpenJoinMenu(ent);
+					return;
+				}
 				if (cl->menu.current || cl->menu.restoreStatusBar) {
 					CloseActiveMenu(ent);
 				}
@@ -534,8 +539,12 @@ Enables administrative permissions when the correct password is supplied.
 			globals.serverFlags |= SERVER_FLAG_SLOW_TIME;
 			cl->showInventory = true;
 			gi.WriteByte(svc_inventory);
-			for (int i = 0; i < IT_TOTAL; i++) {
+			int i = 0;
+			for (; i < IT_TOTAL; ++i) {
 				gi.WriteShort(cl->pers.inventory[i]);
+			}
+			for (; i < MAX_ITEMS; ++i) {
+				gi.WriteShort(0);
 			}
 			gi.unicast(ent, true);
 		}
@@ -794,67 +803,56 @@ Toggles the eyecam view when following other players.
 		}
 	}
 
-	/*
-	=============
-	MyMap
-
-	Queues a requested map for play, applying optional MyMap override flags.
-	=============
-	*/
-	void MyMap(gentity_t* ent, const CommandArgs& args) {
-		if (!g_maps_mymap->integer) {
+	bool CheckMyMapAllowed(gentity_t* ent) {
+		if (!ent || !ent->client) {
+			return false;
+		}
+		if (!g_maps_mymap || !g_maps_mymap->integer || (g_allowMymap && !g_allowMymap->integer)) {
 			gi.Client_Print(ent, PRINT_HIGH, "MyMap functionality is disabled on this server.\n");
-			return;
+			return false;
 		}
 		if (!ent->client->sess.socialID[0]) {
 			gi.Client_Print(ent, PRINT_HIGH, "You must be logged in to use MyMap.\n");
-			return;
+			return false;
 		}
-		if (args.count() < 2 || args.getString(1) == "?") {
-			PrintUsage(ent, args, "<mapname>", "[+flag] [-flag] ...", "Queues a map to be played next with optional rule modifiers.");
-			return;
+		return true;
+	}
+
+	bool QueueMyMapRequest(gentity_t* ent, std::string_view mapName, const std::vector<std::string>& flagArgs) {
+		if (!ent || !ent->client) {
+			return false;
 		}
 
-		std::string_view mapName = args.getString(1);
 		const MapEntry* map = game.mapSystem.GetMapEntry(std::string(mapName));
 		if (!map) {
 			gi.LocClient_Print(ent, PRINT_HIGH, "Map '{}' not found in map pool.\n", mapName.data());
-			return;
+			return false;
 		}
 		if (map->filename.empty()) {
 			gi.Client_Print(ent, PRINT_HIGH, "Cannot queue map with missing filename metadata.\n");
-			return;
+			return false;
 		}
-		if (game.mapSystem.IsMapInQueue(std::string(mapName))) {
-			gi.LocClient_Print(ent, PRINT_HIGH, "Map '{}' is already in the play queue.\n", mapName.data());
-			return;
+		if (game.mapSystem.IsMapInQueue(map->filename)) {
+			gi.LocClient_Print(ent, PRINT_HIGH, "Map '{}' is already in the play queue.\n", map->filename.c_str());
+			return false;
 		}
 		if (game.mapSystem.IsClientInQueue(ent->client->sess.socialID)) {
 			gi.Client_Print(ent, PRINT_HIGH, "You already have a map queued.\n");
-			return;
-		}
-
-		std::vector<std::string> flagArgs;
-		flagArgs.reserve(args.count() > 2 ? args.count() - 2 : 0);
-		for (size_t i = 2; i < args.count(); ++i) {
-			std::string_view flag = args.getString(i);
-			if (!flag.empty()) {
-				flagArgs.emplace_back(flag);
-			}
+			return false;
 		}
 
 		uint16_t enableFlags = 0;
 		uint16_t disableFlags = 0;
 		if (!ParseMyMapFlags(flagArgs, enableFlags, disableFlags)) {
 			gi.Client_Print(ent, PRINT_HIGH, "Invalid flag(s). Use 'mymap ?' for help.\n");
-			return;
+			return false;
 		}
 
 		std::string_view socialID = ent->client->sess.socialID;
 		const auto enqueueResult = game.mapSystem.EnqueueMyMapRequest(*map, socialID, enableFlags, disableFlags, level.time);
 		if (!enqueueResult.accepted) {
 			gi.Client_Print(ent, PRINT_HIGH, "MyMap queueing is currently disabled.\n");
-			return;
+			return false;
 		}
 
 		std::string display = map->filename;
@@ -870,6 +868,37 @@ Toggles the eyecam view when following other players.
 		if (enqueueResult.evictedOldest) {
 			gi.LocClient_Print(ent, PRINT_HIGH, "MyMap queue was full; the oldest request was replaced.\n");
 		}
+		return true;
+	}
+
+	/*
+	=============
+	MyMap
+
+	Queues a requested map for play, applying optional MyMap override flags.
+	=============
+	*/
+	void MyMap(gentity_t* ent, const CommandArgs& args) {
+		if (!CheckMyMapAllowed(ent)) {
+			return;
+		}
+		if (args.count() < 2 || args.getString(1) == "?") {
+			PrintUsage(ent, args, "<mapname>", "[+flag] [-flag] ...", "Queues a map to be played next with optional rule modifiers.");
+			return;
+		}
+
+		std::string_view mapName = args.getString(1);
+
+		std::vector<std::string> flagArgs;
+		flagArgs.reserve(args.count() > 2 ? args.count() - 2 : 0);
+		for (int i = 2; i < args.count(); ++i) {
+			std::string_view flag = args.getString(i);
+			if (!flag.empty()) {
+				flagArgs.emplace_back(flag);
+			}
+		}
+
+		QueueMyMapRequest(ent, mapName, flagArgs);
 	}
 
 	void MySkill(gentity_t* ent, const CommandArgs& args) {
@@ -959,6 +988,8 @@ Toggles the eyecam view when following other players.
 		*/
 		void PutAway(gentity_t* ent, const CommandArgs& args) {
 			(void)args;
+			if (ent->client->initialMenu.frozen)
+				return;
 			ent->client->showScores = false;
 			ent->client->showHelp = false;
 			ent->client->showInventory = false;
@@ -974,6 +1005,7 @@ Toggles the eyecam view when following other players.
 	void Score(gentity_t* ent, const CommandArgs& args) {
 		if (level.intermission.time) return;
 		if (!deathmatch->integer && !coop->integer) return;
+		if (ent->client->initialMenu.frozen) return;
 
 		if (Vote_Menu_Active(ent)) {
 			ent->client->ps.stats[STAT_SHOW_STATUSBAR] = ClientIsPlaying(ent->client) ? 1 : 0;
@@ -1148,20 +1180,40 @@ Toggles the eyecam view when following other players.
 		=============
 		*/
 		void Use(gentity_t* ent, const CommandArgs& args) {
+			const std::string_view cmd = args.getString(0);
 			std::string itemQuery = args.joinFrom(1);
 			std::string_view itemName = args.getString(1);
 			if (itemQuery.empty()) {
-				PrintUsage(ent, args, "<item_name>", "", "Uses an item from your inventory.");
+				if (cmd == "use_index" || cmd == "use_index_only")
+					PrintUsage(ent, args, "<item_index>", "", "Uses an item from your inventory by index.");
+				else
+					PrintUsage(ent, args, "<item_name>", "", "Uses an item from your inventory.");
 				return;
 			}
 
 			Item* it = nullptr;
-			if (itemName == "holdable") {
-				if (ent->client->pers.inventory[IT_TELEPORTER]) it = GetItemByIndex(IT_TELEPORTER);
-				else if (ent->client->pers.inventory[IT_ADRENALINE]) it = GetItemByIndex(IT_ADRENALINE);
+			if (cmd == "use_index" || cmd == "use_index_only") {
+				std::optional<int> itemIndex = args.getInt(1);
+				if (!itemIndex && itemQuery == "${inventory index}")
+					itemIndex = static_cast<int>(ent->client->pers.selectedItem);
+
+				if (itemIndex && *itemIndex > IT_NULL && *itemIndex < IT_TOTAL)
+					it = GetItemByIndex(static_cast<item_id_t>(*itemIndex));
+			}
+			else if (itemName == "holdable") {
+				if (ent->client->pers.inventory[IT_TELEPORTER])
+					it = GetItemByIndex(IT_TELEPORTER);
+				else if (ent->client->pers.inventory[IT_ADRENALINE])
+					it = GetItemByIndex(IT_ADRENALINE);
 			}
 			else {
 				it = FindItem(itemQuery.c_str());
+				if (!it) {
+					if (auto parsedIndex = CommandArgs::ParseInt(itemName)) {
+						if (*parsedIndex > IT_NULL && *parsedIndex < IT_TOTAL)
+							it = GetItemByIndex(static_cast<item_id_t>(*parsedIndex));
+					}
+				}
 			}
 
 			if (!it) {
@@ -1177,7 +1229,7 @@ Toggles the eyecam view when following other players.
 				return;
 			}
 
-			ent->client->noWeaponChains = (args.getString(0) != "use");
+			ent->client->noWeaponChains = (cmd != "use" && cmd != "use_index");
 
 			it->use(ent, it);
 			ValidateSelectedItem(ent);

@@ -1,16 +1,10 @@
 # WORR Knowledge Base
 
-Welcome to the WORR Knowledge Base, a curated hub for everything related to the WORR gameplay expansion for Quake II Rerelease. WORR dramatically broadens multiplayer systems, entity support, and presentation polish while preserving the fast, kinetic feel of id Software's classic shooter.【F:README.md†L1-L47】
+Welcome! This is the home page for the WORR wiki and the fastest way to find the right guide for your role.
 
-> **Maintainers:** This repository ships Markdown sources for the GitHub-hosted wiki under `wiki/`. Mirror updates from this directory into the [`WORR-kex` wiki](https://github.com/themuffinator/WORR-kex/wiki) by pushing the pages into the separate `WORR-kex.wiki` repository so players always see the latest guidance.
+> **Maintainers:** The Markdown in `wiki/` is the source for the GitHub-hosted wiki. Mirror updates from this folder into the [`WORR-kex` wiki](https://github.com/themuffinator/WORR-kex/wiki) by pushing to the separate `WORR-kex.wiki` repository.
 
-## Getting Started
-- **Why WORR?** Review the [comparison journal](docs/worr_vs_quake2.md) for a high-level breakdown of how WORR evolves the rerelease DLL’s gameplay, administration, and analytics stack.
-- **Release cadence:** Consult [Versioning & Release Channels](docs/versioning.md) for stability expectations before upgrading production servers.
-- **What changed recently?** Track packaged updates and patch notes in `CHANGELOG.md` once published.
-
-## Personas & Quick Links
-Choose the guide tailored to your role. Each page cross-links to supporting references and deep dives.
+## Start Here
 
 | Persona | Focus |
 | --- | --- |
@@ -20,18 +14,21 @@ Choose the guide tailored to your role. Each page cross-links to supporting refe
 | [Programmers](Programmers.md) | Repository layout, build tooling, subsystem entry points, contribution workflow. |
 
 Additional reference pages:
-- [Console Commands](Commands.md) — Administrative, competitive, and player-facing console verbs.
-- [Cvar Reference](Cvars.md) — Tunable runtime settings grouped by responsibility.
+- [Console Commands](Commands.md) - Administrative, competitive, and player-facing console verbs.
+- [Cvar Reference](Cvars.md) - Tunable runtime settings grouped by responsibility.
 
-## Feature Highlights
-- **Multiplayer expansion:** WORR ships 17 curated gametypes, match presets, and a hardened tournament flow that goes well beyond stock Quake II.【F:README.md†L20-L40】
-- **Systems depth:** JSON map pools, MyMap queues, and selectors ensure rotations reflect player counts and curated tags.【F:docs/mapsystem.html†L17-L104】
-- **Administrative control:** Fine-grained vote flags, match management commands, and lockouts give server operators robust governance.【F:docs/g_vote_flags.md†L1-L24】【F:src/server/commands/command_admin.cpp†L484-L510】
-- **Player experience:** Adaptive HUD elements, announcer feedback, and ghost persistence keep matches readable and continuous.【F:README.md†L42-L45】【F:src/server/gameplay/g_spawn_points.cpp†L1350-L1396】
+## Highlights
 
-## Keeping the Wiki Discoverable
-- Add a “Wiki” link wherever documentation surfaces (game menus, website landing pages, community posts) so newcomers can find these guides quickly.
-- Include direct pointers to persona pages in release announcements when rolling out features relevant to a specific audience.
+- **18 competitive gametypes plus Practice Mode**, including no-score warmups with self-damage disabled.
+- **Map system depth** with JSON pools, MyMap queues, and post-match selectors.
+- **Admin control** via vote flags, match management commands, and lockouts.
+- **Player continuity** with adaptive HUD cues and ghost persistence on reconnects.
+
+## Getting Oriented
+
+- **Why WORR?** Review the [comparison journal](../docs/worr_vs_quake2.md) for a high-level breakdown of how WORR evolves the rerelease DLL's gameplay, administration, and analytics stack.
+- **Release cadence:** Consult [Versioning & Release Channels](../docs/versioning.md) for stability expectations before upgrading production servers.
+- **What changed recently?** Track packaged updates and patch notes in [`CHANGELOG.md`](../CHANGELOG.md) once published.
 
 ## Contributing to Documentation
 1. Edit the relevant Markdown under `wiki/`.

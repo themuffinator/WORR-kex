@@ -1011,6 +1011,10 @@ static void ClientObituary(gentity_t* victim, gentity_t* inflictor, gentity_t* a
 		case Thunderbolt_Discharge:
 			base = "{} had a fatal discharge.\n";
 			break;
+		case PlasmaGun:
+		case PlasmaGun_Splash:
+			base = "{} was dissolved by their own Plasma Gun.\n";
+			break;
 		case Doppelganger_Explode:
 			base = "{} was fooled by their own doppelganger.\n";
 			break;
@@ -1136,6 +1140,12 @@ static void ClientObituary(gentity_t* victim, gentity_t* inflictor, gentity_t* a
 		break;
 	case ETFRifle:
 		base = "{} was perforated by {}.\n";
+		break;
+	case PlasmaGun:
+		base = "{} was melted by {}'s Plasma Gun.\n";
+		break;
+	case PlasmaGun_Splash:
+		base = "{} was splashed by {}'s Plasma Gun.\n";
 		break;
 	case PlasmaBeam:
 		base = "{} was scorched by {}'s Plasma Beam.\n";
@@ -2502,6 +2512,7 @@ void InitClientPersistant(gentity_t* ent, gclient_t* client) {
 				client->pers.inventory[IT_WEAPON_GLAUNCHER] = 1;
 				client->pers.inventory[IT_WEAPON_RLAUNCHER] = 1;
 				client->pers.inventory[IT_WEAPON_HYPERBLASTER] = 1;
+				client->pers.inventory[IT_WEAPON_PLASMAGUN] = 1;
 				client->pers.inventory[IT_WEAPON_PLASMABEAM] = 1;
 				if (!(RS(Quake1)))
 					client->pers.inventory[IT_WEAPON_RAILGUN] = 1;
@@ -3097,6 +3108,9 @@ bool InitPlayerTeam(gentity_t* ent) {
 	ent->client->ps.teamID = static_cast<int>(ent->client->sess.team);
 	MoveClientToFreeCam(ent);
 
+	ent->client->initialMenu.frozen = true;
+	ent->client->initialMenu.hostSetupDone = false;
+	ent->client->initialMenu.shown = false;
 	if (!ent->client->initialMenu.shown)
 		ent->client->initialMenu.delay = level.time + 10_hz;
 
@@ -3456,6 +3470,11 @@ bool SetTeam(gentity_t* ent, Team desired_team, bool inactive, bool force, bool 
 	if (changedTeam)
 		Harvester_HandleTeamChange(ent);
 
+	if (cl->menu.current || cl->menu.restoreStatusBar) {
+		CloseActiveMenu(ent);
+		cl->menu_sign = 0;
+	}
+
 	const int64_t now = GetCurrentRealTimeMillis();
 
 	if (target == Team::Spectator) {
@@ -3517,11 +3536,32 @@ worr::server::client::P_AccumulateMatchPlayTime(cl, now);
 
 		FreeFollower(ent);
 		MoveClientToFreeCam(ent);
+		if (level.spawn.intermission) {
+			FindIntermissionPoint();
+			const Vector3 interOrigin = level.intermission.origin;
+			const Vector3 interAngles = level.intermission.angles;
+
+			cl->ps.pmove.origin = interOrigin;
+			ent->s.origin = interOrigin;
+			ent->s.oldOrigin = interOrigin;
+
+			cl->ps.pmove.deltaAngles = interAngles - cl->resp.cmdAngles;
+
+			ent->s.angles = interAngles;
+			cl->ps.viewAngles = interAngles;
+			cl->vAngle = interAngles;
+			cl->oldViewAngles = interAngles;
+
+			AngleVectors(cl->vAngle, cl->vForward, nullptr, nullptr);
+			gi.linkEntity(ent);
+		}
 		FreeClientFollowers(ent);
 	}
 	else {
 		cl->sess.team = target;
 		cl->ps.teamID = static_cast<int>(cl->sess.team);
+		if (Teams())
+			AssignPlayerSkin(ent, cl->sess.skinName);
 		cl->sess.matchQueued = false;
 		cl->sess.duelQueueTicket = 0;
 		cl->sess.inactiveStatus = false;
@@ -3557,6 +3597,13 @@ worr::server::client::P_AccumulateMatchPlayTime(cl, now);
 	BroadcastTeamChange(ent, old_team, spectatorInactive, silent);
 	CalculateRanks();
 	ClientUpdateFollowers(ent);
+
+	if (cl->initialMenu.frozen) {
+		cl->initialMenu.frozen = false;
+		cl->initialMenu.shown = true;
+		cl->initialMenu.delay = 0_sec;
+		cl->initialMenu.hostSetupDone = true;
+	}
 
 	if (!force && wasInitialised && changedTeam)
 		cl->resp.teamDelayTime = level.time + 5_sec;
@@ -3879,7 +3926,11 @@ static void P_FallingDamage(gentity_t* ent, const PMove& pm) {
 		else
 			ent->s.event = EV_FALL_MEDIUM;
 		if (g_fallingDamage->integer && !Game::Has(GameFlags::Arena)) {
-			ent->pain_debounce_time = level.time + FRAME_TIME_S; // no normal pain sound
+			const int healthBefore = ent->health;
+			const int feedbackBefore = ent->client
+				? (ent->client->damage.blood + ent->client->damage.armor + ent->client->damage.powerArmor)
+				: 0;
+
 			if (RS(Quake3Arena))
 				damage = ent->s.event == EV_FALL_FAR ? 10 : 5;
 			else {
@@ -3890,6 +3941,17 @@ static void P_FallingDamage(gentity_t* ent, const PMove& pm) {
 			dir = { 0, 0, 1 };
 
 			Damage(ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DamageFlags::Normal, ModID::FallDamage);
+
+			if (ent->client) {
+				const int feedbackAfter = ent->client->damage.blood + ent->client->damage.armor + ent->client->damage.powerArmor;
+				const int healthDelta = healthBefore - ent->health;
+				if (healthDelta > 0 && ent->health > 0 && feedbackAfter == feedbackBefore) {
+					// Ensure fall damage generates HUD feedback even if damage tracking misses it.
+					ent->client->damage.blood += healthDelta;
+					ent->client->damage.origin = ent->s.origin;
+					ent->client->last_damage_time = level.time + COOP_DAMAGE_RESPAWN_TIME;
+				}
+			}
 		}
 	}
 	else

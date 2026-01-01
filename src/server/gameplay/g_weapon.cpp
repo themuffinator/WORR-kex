@@ -1502,29 +1502,55 @@ void fire_plasmabeam(gentity_t* self, const Vector3& start, const Vector3& aimDi
 		fire_beams(self, start, aimDir, offset, damage, kick, TE_HEATBEAM, TE_HEATBEAM_SPARKS, ModID::PlasmaBeam);
 }
 
+static void SpawnThunderboltBeam(gentity_t* self, const Vector3& start, const Vector3& end) {
+	gentity_t* beam = Spawn();
+	if (!beam)
+		return;
+
+	beam->className = "thunderbolt_beam";
+	beam->owner = self;
+	beam->moveType = MoveType::None;
+	beam->solid = SOLID_NOT;
+	beam->s.modelIndex = gi.modelIndex("models/proj/lightning/tris.md2");
+	beam->s.renderFX = RF_BEAM;
+	beam->s.effects |= EF_ANIM_ALLFAST;
+	beam->s.origin = start;
+	beam->s.oldOrigin = end;
+	beam->think = FreeEntity;
+	beam->nextThink = level.time + FRAME_TIME_MS;
+
+	gi.linkEntity(beam);
+}
+
 /*
 ===============
 fire_thunderbolt
-Q1-style instant lightning beam with temp event for effect and sound at impact.
+Q1-style instant lightning beam using RF_BEAM_LIGHTNING and tesla zap effects.
 ===============
 */
-void fire_thunderbolt(gentity_t* self, const Vector3& start, const Vector3& aimDir, const Vector3& offset, int damage, int kick, MeansOfDeath mod, bool playFireSound) {
+bool fire_thunderbolt(gentity_t* self, const Vector3& start, const Vector3& aimDir, const Vector3& offset, int damage, int kick, MeansOfDeath mod, int damageMultiplier) {
 	trace_t	   tr;
 	Vector3	   dir;
-	Vector3	   forward, right, up;
+	Vector3	   forward;
 	Vector3	   end;
 	Vector3	   water_start, endpoint;
 	bool	   water = false, underwater = false;
 	contents_t content_mask = MASK_PROJECTILE | MASK_WATER;
+
+	Vector3 beamStart = start;
+	if (self->client) {
+		Vector3 beamDir;
+		P_ProjectSource(self, self->client->vAngle, offset, beamStart, beamDir);
+	}
 
 	// [Paril-KEX]
 	if (self->client && !G_ShouldPlayersCollide(true))
 		content_mask &= ~CONTENTS_PLAYER;
 
 	dir = VectorToAngles(aimDir);
-	AngleVectors(dir, forward, right, up);
+	AngleVectors(dir, forward, nullptr, nullptr);
 
-	int length = RS(Quake3Arena) ? 768 : 700;
+	int length = RS(Quake1) ? 600 : (RS(Quake3Arena) ? 768 : 700);
 	end = start + (forward * length);
 
 	if (gi.pointContents(start) & MASK_WATER) {
@@ -1535,26 +1561,32 @@ void fire_thunderbolt(gentity_t* self, const Vector3& start, const Vector3& aimD
 
 	// Thunderbolt Discharge: if *actually firing* while underwater
 	if (underwater && self->client) {
-		// Play initial fire/discharge sound at player
-		if (playFireSound) {
-			gi.sound(self, CHAN_WEAPON, gi.soundIndex("weapons/lfire.wav"), 1, ATTN_NORM, 0);
+		const int ammoIdx = self->client->pers.weapon->ammo;
+		int cells = self->client->pers.inventory[ammoIdx];
+		const int maxCells = self->client->pers.ammoMax[static_cast<int>(AmmoID::Cells)];
+		const bool infiniteAmmo = InfiniteAmmoOn(self->client->pers.weapon);
+
+		if (cells > maxCells)
+			cells = maxCells;
+
+		if (!infiniteAmmo)
+			self->client->pers.inventory[ammoIdx] = 0;
+
+		const float dischargeDamage = 35.0f * static_cast<float>(cells) * static_cast<float>(damageMultiplier);
+		if (dischargeDamage > 0.0f) {
+			const float dischargeRadius = dischargeDamage + 40.0f;
+			RadiusDamage(self, self, dischargeDamage, self, dischargeRadius, DamageFlags::Energy | DamageFlags::StatOnce, ModID::Thunderbolt_Discharge);
+			Damage(self, self, self, aimDir, self->s.origin, vec3_origin, static_cast<int>(dischargeDamage * 0.5f), 0,
+				DamageFlags::Energy | DamageFlags::StatOnce, ModID::Thunderbolt_Discharge);
 		}
 
-		// Massive self/area damage, zero all cells
-		int ammoIdx = self->client->pers.weapon->ammo;
-		self->client->pers.inventory[ammoIdx] = 0;
-
-		RadiusDamage(self, self, 1000.0f, nullptr, 200.0f, DamageFlags::Energy, ModID::Thunderbolt_Discharge);
-		Damage(self, self, self, aimDir, self->s.origin, vec3_origin, 1000, 0, DamageFlags::Energy, ModID::Thunderbolt_Discharge);
-
-		// Discharge effect (Q1-style; fallback to a big splash if not available)
 		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte(TE_ELECTRIC_SPARKS);
 		gi.WritePosition(self->s.origin);
-		gi.WriteDir(Vector3{ 0,0,1 });
+		gi.WriteDir(Vector3{ 0, 0, 1 });
 		gi.multicast(self->s.origin, MULTICAST_PVS, false);
 
-		return;
+		return true;
 	}
 
 	tr = gi.traceLine(start, end, self, content_mask);
@@ -1580,24 +1612,44 @@ void fire_thunderbolt(gentity_t* self, const Vector3& start, const Vector3& aimD
 	if (water)
 		damage = damage / 2;
 
-	// send gun puff / flash
-	if (!((tr.surface) && (tr.surface->flags & SURF_SKY))) {
-		if (tr.fraction < 1.0f) {
-			if (tr.ent->takeDamage) {
-				Damage(tr.ent, self, self, aimDir, tr.endPos, tr.plane.normal, damage, kick, DamageFlags::Energy, mod);
-			}
-			else {
-				if ((!water) && !(tr.surface && (tr.surface->flags & SURF_SKY))) {
-					gi.WriteByte(svc_temp_entity);
-					gi.WriteByte(TE_HEATBEAM_STEAM);
-					gi.WritePosition(tr.endPos);
-					gi.WriteDir(tr.plane.normal);
-					gi.multicast(tr.endPos, MULTICAST_PVS, false);
+	gentity_t* hit1 = nullptr;
+	gentity_t* hit2 = nullptr;
+	auto apply_damage = [&](const trace_t& hit) {
+		if (!hit.ent || !hit.ent->takeDamage)
+			return;
 
-					if (self->client)
-						G_PlayerNoise(self, tr.endPos, PlayerNoise::Impact);
-				}
-			}
+		if (hit.ent == hit1 || hit.ent == hit2)
+			return;
+
+		Damage(hit.ent, self, self, aimDir, hit.endPos, hit.plane.normal, damage, kick, DamageFlags::Energy, mod);
+
+		if (!hit1)
+			hit1 = hit.ent;
+		else
+			hit2 = hit.ent;
+	};
+
+	apply_damage(tr);
+
+	Vector3 side = { -forward[_Y], forward[_X], 0.0f };
+	if (side.length() > 0.1f) {
+		side.normalize();
+		side *= 16.0f;
+		const contents_t damage_mask = content_mask & ~MASK_WATER;
+		apply_damage(gi.traceLine(start + side, end + side, self, damage_mask));
+		apply_damage(gi.traceLine(start - side, end - side, self, damage_mask));
+	}
+
+	if (!((tr.surface) && (tr.surface->flags & SURF_SKY))) {
+		if (tr.fraction < 1.0f && !water && (!tr.ent || !tr.ent->takeDamage)) {
+			gi.WriteByte(svc_temp_entity);
+			gi.WriteByte(TE_ELECTRIC_SPARKS);
+			gi.WritePosition(tr.endPos);
+			gi.WriteDir(tr.plane.normal);
+			gi.multicast(tr.endPos, MULTICAST_PVS, false);
+
+			if (self->client)
+				G_PlayerNoise(self, tr.endPos, PlayerNoise::Impact);
 		}
 	}
 
@@ -1623,18 +1675,8 @@ void fire_thunderbolt(gentity_t* self, const Vector3& start, const Vector3& aimD
 		gi.multicast(pos, MULTICAST_PVS, false);
 	}
 
-	// Play initial firing sound at *start* (not every tick)
-	//if (playFireSound) {
-	//	gi.sound(self, CHAN_WEAPON, gi.soundIndex("weapons/lfire.wav"), 1, ATTN_NORM, 0);
-	//}
-
-	// Beam visual (like Q3A/Q2 Lightning Gun)
-	gi.WriteByte(svc_temp_entity);
-	gi.WriteByte(TE_LIGHTNING_BEAM);
-	gi.WriteEntity(self);
-	gi.WritePosition(start);
-	gi.WritePosition(!underwater && !water ? tr.endPos : endpoint);
-	gi.multicast(self->s.origin, MULTICAST_ALL, false);
+	SpawnThunderboltBeam(self, beamStart, (!underwater && !water) ? tr.endPos : endpoint);
+	return false;
 }
 
 
@@ -3151,6 +3193,91 @@ void fire_heat(gentity_t* self, const Vector3& start, const Vector3& dir, int da
 	heat->s.sound = gi.soundIndex("weapons/rockfly.wav");
 
 	gi.linkEntity(heat);
+}
+
+
+/*
+=================
+fire_plasmagun
+=================
+*/
+static void SpawnPlasmaExplosion(const Vector3& origin) {
+	gentity_t* explosion = Spawn();
+	explosion->s.origin = origin;
+	explosion->s.modelIndex = gi.modelIndex("sprites/s_pls2.sp2");
+	explosion->s.effects |= EF_ANIM_ALLFAST;
+	explosion->s.renderFX |= RF_TRANSLUCENT;
+	explosion->solid = SOLID_NOT;
+	explosion->nextThink = level.time + 500_ms;
+	explosion->think = FreeEntity;
+	gi.linkEntity(explosion);
+}
+
+static TOUCH(plasmagun_touch) (gentity_t* ent, gentity_t* other, const trace_t& tr, bool otherTouchingSelf) -> void {
+	if (other == ent->owner)
+		return;
+
+	if (tr.surface && (tr.surface->flags & SURF_SKY)) {
+		FreeEntity(ent);
+		return;
+	}
+
+	if (ent->owner && ent->owner->client)
+		G_PlayerNoise(ent->owner, ent->s.origin, PlayerNoise::Impact);
+
+	const Vector3 origin = ent->s.origin + tr.plane.normal;
+
+	if (other->takeDamage) {
+		Damage(other, ent, ent->owner, ent->velocity, ent->s.origin, tr.plane.normal, ent->dmg, 1,
+			DamageFlags::Energy | DamageFlags::StatOnce, ModID::PlasmaGun);
+	}
+
+	if (ent->splashDamage) {
+		RadiusDamage(ent, ent->owner, static_cast<float>(ent->splashDamage), other, ent->splashRadius,
+			DamageFlags::Energy, ModID::PlasmaGun_Splash);
+	}
+
+	gi.sound(ent, CHAN_WEAPON, gi.soundIndex("weapons/plsmexpl.wav"), 1, ATTN_NORM, 0);
+	SpawnPlasmaExplosion(origin);
+
+	FreeEntity(ent);
+}
+
+void fire_plasmagun(gentity_t* self, const Vector3& start, const Vector3& dir, int damage, int speed, float splashRadius, int splashDamage) {
+	gentity_t* plasma = Spawn();
+	trace_t tr;
+
+	plasma->s.origin = start;
+	plasma->s.oldOrigin = start;
+	plasma->s.angles = VectorToAngles(dir);
+	plasma->velocity = dir * speed;
+	plasma->moveType = MoveType::FlyMissile;
+	plasma->svFlags |= SVF_PROJECTILE;
+	plasma->clipMask = MASK_PROJECTILE;
+	if (self->client && !G_ShouldPlayersCollide(true))
+		plasma->clipMask &= ~CONTENTS_PLAYER;
+	plasma->solid = SOLID_BBOX;
+	plasma->flags |= FL_DODGE;
+	plasma->s.effects |= EF_PLASMA | EF_ANIM_ALLFAST;
+	plasma->s.renderFX |= RF_TRANSLUCENT;
+	plasma->s.modelIndex = gi.modelIndex("sprites/s_pls1.sp2");
+	plasma->s.sound = gi.soundIndex("weapons/plsmhumm.wav");
+	plasma->owner = self;
+	plasma->touch = plasmagun_touch;
+	plasma->nextThink = level.time + GameTime::from_sec(8000.f / speed);
+	plasma->think = FreeEntity;
+	plasma->dmg = damage;
+	plasma->splashDamage = splashDamage;
+	plasma->splashRadius = splashRadius;
+	plasma->className = "plasma bolt";
+
+	gi.linkEntity(plasma);
+
+	tr = gi.traceLine(self->s.origin, plasma->s.origin, plasma, plasma->clipMask);
+	if (tr.fraction < 1.0f) {
+		plasma->s.origin = tr.endPos + (tr.plane.normal * 1.f);
+		plasma->touch(plasma, tr.ent, tr, false);
+	}
 }
 
 

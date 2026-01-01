@@ -25,7 +25,7 @@ Define the canonical list of playable maps in a JSON file referenced by `g_maps_
       "duel": true,
       "min": 2,
       "max": 8,
-      "gametype": 0,
+      "gametype": 1,
       "ruleset": 0,
       "scorelimit": 30,
       "timelimit": 15,
@@ -35,7 +35,7 @@ Define the canonical list of playable maps in a JSON file referenced by `g_maps_
   ]
 }
 ```
-Required keys: `bsp`, at least one game-mode flag (`dm` for deathmatch). Optional fields tailor matchmaking constraints and defaults such as score limit overrides or preferred rulesets.
+Required keys: `bsp`, at least one game-mode flag (`dm` for deathmatch). Optional fields tailor matchmaking constraints and defaults such as score limit overrides or preferred rulesets. Use `gametype: 1` for FFA defaults; `0` is Practice Mode (no-score, no self-damage).
 
 > **Design hand-off:** When curating rotation updates, point level builders to the [Entity Catalogue](level-design.md#entity-catalogue) so spawnpads, arenas, and objective triggers match the metadata you advertise to players.
 
@@ -54,7 +54,7 @@ Queue maps with optional overrides:
 ```text
 mymap q2dm1 +pu -ht
 ```
-Flags let requesters toggle powerups, armor, ammo, health, the BFG, fall damage, and self damage for their pick. WORR blocks maps played in the last 30 minutes to keep rotations fresh.
+Flags let requesters toggle powerups, armor, ammo, health, the BFG, fall damage, and self-damage for their pick. WORR blocks maps played in the last 30 minutes to keep rotations fresh.
 
 ### Selector Voting
 `g_maps_selector` presents up to three vetted choices at match end. Candidates respect cycle eligibility, player-count bounds, recent-play cooldowns, and custom-map avoidance when necessary. Ties fall back to rotation defaults or a weighted random pick.
