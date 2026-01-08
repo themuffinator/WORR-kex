@@ -3,6 +3,14 @@
   <h2>WORR! An extensive server mod under development for QUAKE II Rerelease</h2>
 </div>
 <p align="center">
+  <img src="https://img.shields.io/badge/license-GPL--2.0%2B-blue" alt="License badge">
+  <img src="https://img.shields.io/badge/status-in%20development-orange" alt="Status badge">
+  <img src="https://img.shields.io/badge/platform-Quake%20II%20Rerelease-lightgrey" alt="Platform badge">
+  <a href="https://discord.gg/T32mFejwR4" target="_blank">
+    <img src="https://img.shields.io/discord/1305498944247435356?label=Discord&logo=discord&logoColor=white" alt="Discord badge">
+  </a>
+</p>
+<p align="center">
 <b>WORR</b> is an advanced gameplay expansion and server mod for <b>QUAKE II Rerelease</b>, designed to offer a richer, more dynamic single-player and multiplayer experience.
 It dramatically extends entity and gameplay support, integrates modern competitive systems, and refines the core feel of QUAKE II while preserving its fast-paced essence.
 </p>
