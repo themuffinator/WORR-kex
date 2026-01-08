@@ -56,10 +56,14 @@ These flags appear in each `RegisterCommand` call alongside the handler function
   - *Syntax:* `end_match`  
   - *Permissions:* Admin-only; usable while spectating or during intermission.  
   - *Example:* `\end_match`
-- **`reset_match`** — Restarts the live match after confirming it has begun and is not already at intermission.  
+- **`reset_match`** - Restarts the live match after confirming it has begun and is not already at intermission.  
   - *Syntax:* `reset_match`  
   - *Permissions:* Admin-only; usable while spectating or during intermission.  
   - *Example:* `\reset_match`
+- **`replay`** - Replays a specific tournament game in the current match set (confirmation required).  
+  - *Syntax:* `replay <game#> [confirm]`  
+  - *Permissions:* Admin-only; usable while spectating or during intermission.  
+  - *Example:* `\replay 2 confirm`
 - **`map_restart`** — Issues a `gamemap` reload for the current BSP, effectively soft-restarting the server session.  
   - *Syntax:* `map_restart`  
   - *Permissions:* Admin-only; usable while spectating or during intermission.  
@@ -103,10 +107,10 @@ These flags appear in each `RegisterCommand` call alongside the handler function
   - *Syntax:* `arena [number]`  
   - *Permissions:* Admin-only; callable while spectating (intermission restricted).  
   - *Example:* `\arena 3`
-- **`gametype`** — Lists available gametypes on `?` and switches modes when supplied a valid identifier; use `practice` for no-score warmups with self-damage disabled.  
+- **`gametype`** - Lists available gametypes on `?` and switches modes when supplied a valid identifier; `none` sets a no-score ruleset (also disables self-damage). For persistent warmup sessions, set `g_practice 1`.  
   - *Syntax:* `gametype <name>`  
   - *Permissions:* Admin-only; usable while spectating or during intermission.  
-  - *Example:* `\gametype practice`
+  - *Example:* `\gametype duel`
 - **`ruleset`** — Shows the active ruleset and applies a new one by identifier, updating the `g_ruleset` cvar.  
   - *Syntax:* `ruleset <q1|q2|q3a>`  
   - *Permissions:* Admin-only; usable while spectating or during intermission.  
@@ -142,18 +146,34 @@ These flags appear in each `RegisterCommand` call alongside the handler function
   - *Syntax:* `forfeit`  
   - *Permissions:* Usable while dead; flood-exempt.  
   - *Example:* `\forfeit`
-- **`timeout`** / **`timein`** — Starts a timeout (respecting per-player limits) or ends one if called by the owner or an admin.  
+- **`timeout`** / **`timein`** - Starts a timeout (respecting per-player limits) or ends one if called by the owner or an admin.  
   - *Syntax:* `timeout` / `timein`  
   - *Permissions:* Usable while dead or spectating.  
   - *Example:* `\timeout`
-- **`timer`** — Toggles the HUD match timer widget for the caller.  
+- **`timer`** - Toggles the HUD match timer widget for the caller.  
   - *Syntax:* `timer`  
   - *Permissions:* Usable while dead or spectating.  
   - *Example:* `\timer`
-- **`putaway`** — Closes active menus, scoreboards, and help screens, restoring the regular HUD.  
+- **`putaway`** - Closes active menus, scoreboards, and help screens, restoring the regular HUD.  
   - *Syntax:* `putaway`  
   - *Permissions:* Usable while spectating.  
   - *Example:* `\putaway`
+
+### Tournament veto tools
+
+- Tournament vetoes are menu-driven; captains (or the home/away players in FFA) can still use the commands below when needed.
+- **`tourney_pick`** - Selects a map for the tournament series during the veto phase (captain only).  
+  - *Syntax:* `tourney_pick <mapname>`  
+  - *Permissions:* Usable while dead or spectating.  
+  - *Example:* `\tourney_pick q2dm1`
+- **`tourney_ban`** - Bans a map from the tournament series during the veto phase (captain only).  
+  - *Syntax:* `tourney_ban <mapname>`  
+  - *Permissions:* Usable while dead or spectating.  
+  - *Example:* `\tourney_ban q2dm2`
+- **`tourney_status`** - Prints the current tournament pool, picks, bans, and whose turn is next.  
+  - *Syntax:* `tourney_status`  
+  - *Permissions:* Usable while dead or spectating.  
+  - *Example:* `\tourney_status`
 
 ### Spectating and camera tools
 

@@ -516,7 +516,7 @@ enum Effect : uint64_t {
 	EF_ANIM_ALLFAST = bit_v<13>,  // automatically cycle through all frames at 10hz
 	EF_FLIES = bit_v<14>,
 	EF_QUAD = bit_v<15>,
-	EF_EMPATHY = bit_v<16>,
+	EF_PENT = bit_v<16>,
 	EF_TELEPORTER = bit_v<17>,  // particle fountain
 	EF_FLAG_RED = bit_v<18>,
 	EF_FLAG_BLUE = bit_v<19>,
@@ -527,7 +527,7 @@ enum Effect : uint64_t {
 	EF_PLASMA = bit_v<24>,
 	EF_TRAP = bit_v<25>,
 	EF_TRACKER = bit_v<26>,
-	EF_PENT = bit_v<27>,
+	EF_DOUBLE = bit_v<27>,
 	EF_SPHERETRANS = bit_v<28>,
 	EF_TAGTRAIL = bit_v<29>,
 	EF_HALF_DAMAGE = bit_v<30>,
@@ -537,7 +537,8 @@ enum Effect : uint64_t {
 	EF_FLASHLIGHT = bit_v<34>, // [Paril-KEX] project flashlight, only for players
 	EF_BARREL_EXPLODING = bit_v<35>,
 	EF_TELEPORTER2 = bit_v<36>, // [Paril-KEX] n64 teleporter
-	EF_GRENADE_LIGHT = bit_v<37>
+	EF_GRENADE_LIGHT = bit_v<37>,
+	EF_EMPATHY = bit_v<38>
 };
 
 MAKE_ENUM_BITFLAGS(Effect);

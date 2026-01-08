@@ -20,7 +20,7 @@ namespace worr {
 namespace {
 
 std::string g_module_name;
-std::atomic<LogLevel> g_log_level = LogLevel::Info;
+std::atomic<LogLevel> g_log_level = LogLevel::Warn;
 std::function<void(std::string_view)> g_print_sink;
 std::function<void(std::string_view)> g_error_sink;
 std::mutex g_logger_mutex;
@@ -80,7 +80,7 @@ LogLevel ParseLogLevel(std::string_view value)
 	if (lowered == "error")
 		return LogLevel::Error;
 
-	return LogLevel::Info;
+	return LogLevel::Warn;
 }
 
 /*
@@ -94,7 +94,7 @@ LogLevel ReadLogLevelFromEnv()
 {
 	const char* env_value = std::getenv("WORR_LOG_LEVEL");
 	if (!env_value)
-		return LogLevel::Info;
+		return LogLevel::Warn;
 
 	return ParseLogLevel(env_value);
 }

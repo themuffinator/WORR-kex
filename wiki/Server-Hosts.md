@@ -23,20 +23,30 @@ WORR replaces `g_map_list` with a JSON-driven database, cycle, and per-player qu
 - Required key: `bsp`. Optional keys gate eligibility:
   - `dm`, `tdm`, `ctf`, `duel` - mark supported gametypes.
   - `min`/`max` - player count gating.
-  - `ruleset`, `scorelimit`, `timelimit` - overrides applied on load.
-  - `gametype` - use `1` for default FFA; `0` selects Practice Mode (no-score, no self-damage).
+  - `ruleset`, `scorelimit`, `timeLimit` - overrides applied on load.
+  - `gametype` - use `1` for default FFA; omit or set `0` for no override (practice format is controlled via `g_practice`).
 
 ### Map Cycle (`g_maps_cycle_file`)
 - Maintain a plain-text rotation listing BSP names separated by commas, spaces, or line breaks; comments are allowed.
 - Only maps flagged `dm: true` in the pool will enter the cycle, preventing typos from breaking rotations.
 
 ### MyMap Queue & Selector
-- Toggle `g_maps_mymap` to let players queue personal picks with override flags such as `+pu` (powerups) or `+sd` (self-damage).
+- Toggle `g_maps_mymap` and keep `g_allow_mymap` enabled to let players queue personal picks with override flags such as `+pu` (powerups) or `+sd` (self-damage).
 - Enable `g_maps_selector` to surface up to three suitable candidates at intermission, filtered by player counts, history, and custom map policies.
 - Reload JSON and cycle files live with the `load_mappool` and `load_mapcycle` admin commands after edits.
 
+## Tournament Format
+Tournament mode is built for organized events with locked rosters, home/away veto flow, and match sets. It is the only format that supports BO3/BO5/BO7/BO9 series and it disables standard map voting and MyMap.
+
+- Place the tournament JSON in your active gamedir (for example `baseq2/`) and set `g_tourney_cfg` to the filename.
+- The Match Setup menu shows Tournament only when the config validates; selecting it applies the config immediately.
+- All participants must connect and ready up before veto begins; home picks or bans first using the pop-up menu.
+- If a game needs to be replayed, use `replay <game#> confirm` or Admin > Replay Game.
+
+See the [Tournament Format Guide](Tournaments.md) for the full schema, example configs, and veto flow details.
+
 ## Vote Governance
-- `g_vote_flags` exposes twelve discrete vote types. Use bitmasks to curate menus (e.g., disable `ruleset` changes on competitive servers).
+- `g_vote_flags` exposes fourteen discrete vote types (including `forfeit`). Use bitmasks to curate menus (e.g., disable `ruleset` changes on competitive servers).
 - Limit repeated votes by lowering `g_vote_limit`, and gate mid-match calls with `g_allow_vote_mid_game` or spectator-only ballots via `g_allow_spec_vote`.
 - Encourage balanced outcomes: pair `match_powerup_min_player_lock` with `match_powerup_drops` to prevent low-population exploit votes.
 

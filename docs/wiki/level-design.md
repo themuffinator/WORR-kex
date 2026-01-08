@@ -156,9 +156,9 @@ Map metadata drives rotation, voting, and MyMap validation. The `MapEntry` struc
 | `title` | string | Friendly name displayed in votes/status. |
 | `dm` | bool (required) | Marks the entry as multiplayer-capable. Non-DM entries are skipped for rotation. |
 | `min`, `max` | integer | Recommended player bounds; selector enforces the active population band. |
-| `gametype` | integer | Default `GameType` index when no override is supplied (`0` is Practice Mode). |
+| `gametype` | integer | Default `GameType` index when the map should prefer a mode; omit or use `0` for no override. |
 | `ruleset` | integer | Preferred ruleset (Quake/Quake III style). |
-| `scorelimit`, `timelimit` | integer | Per-map overrides applied on load. |
+| `scorelimit`, `timeLimit` | integer | Per-map overrides applied on load. |
 | `popular`, `custom` | bool | Selector hints to prefer or avoid entries, and mark custom packages. |
 | `custom_textures`, `custom_sounds` | bool | Flag custom resources so hosts can filter them. |
 | `sp`, `coop` | bool | Advertise campaign/coop compatibility for mixed playlists. |
@@ -180,7 +180,7 @@ Example map pool entry with optional fields:
       "gametype": 3,
       "ruleset": 2,
       "scorelimit": 125,
-      "timelimit": 20,
+      "timeLimit": 20,
       "control_points": 3,
       "custom": false,
       "custom_textures": true,

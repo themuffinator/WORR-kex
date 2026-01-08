@@ -667,7 +667,8 @@ Displays connected clients, optionally sorted by score or time played.
 
 			switch (sortMode) {
 			case ClientListSortMode::Score:
-				return left->resp.score > right->resp.score;
+				return ClientScoreForStandings(left) >
+					   ClientScoreForStandings(right);
 			case ClientListSortMode::Time:
 				return (level.time - left->resp.enterTime) > (level.time - right->resp.enterTime);
 			default:
@@ -685,7 +686,8 @@ Displays connected clients, optionally sorted by score or time played.
 
 			gi.LocClient_Print(ent, PRINT_HIGH | PRINT_NO_NOTIFY,
 				"[{}] {} | score: {} | time: {}s\n",
-				clientIndex, cl->sess.netName, cl->resp.score, timePlayed);
+				clientIndex, cl->sess.netName,
+				ClientScoreForStandings(cl), timePlayed);
 		}
 
 		gi.Client_Print(ent, PRINT_HIGH | PRINT_NO_NOTIFY, "\n");
@@ -807,6 +809,10 @@ Toggles the eyecam view when following other players.
 		if (!ent || !ent->client) {
 			return false;
 		}
+		if (Tournament_IsActive()) {
+			gi.Client_Print(ent, PRINT_HIGH, "MyMap is disabled during tournaments.\n");
+			return false;
+		}
 		if (!g_maps_mymap || !g_maps_mymap->integer || (g_allowMymap && !g_allowMymap->integer)) {
 			gi.Client_Print(ent, PRINT_HIGH, "MyMap functionality is disabled on this server.\n");
 			return false;
@@ -869,6 +875,45 @@ Toggles the eyecam view when following other players.
 			gi.LocClient_Print(ent, PRINT_HIGH, "MyMap queue was full; the oldest request was replaced.\n");
 		}
 		return true;
+	}
+
+	void TourneyPick(gentity_t* ent, const CommandArgs& args) {
+		if (args.count() < 2) {
+			PrintUsage(ent, args, "<mapname>", "", "Selects a map for the tournament series.");
+			return;
+		}
+
+		std::string message;
+		if (!Tournament_HandleVetoAction(ent, TournamentVetoAction::Pick, args.getString(1), message)) {
+			if (!message.empty())
+				gi.Client_Print(ent, PRINT_HIGH, G_Fmt("{}\n", message).data());
+			return;
+		}
+
+		if (!message.empty())
+			gi.Client_Print(ent, PRINT_HIGH, G_Fmt("{}\n", message).data());
+	}
+
+	void TourneyBan(gentity_t* ent, const CommandArgs& args) {
+		if (args.count() < 2) {
+			PrintUsage(ent, args, "<mapname>", "", "Bans a map from the tournament series.");
+			return;
+		}
+
+		std::string message;
+		if (!Tournament_HandleVetoAction(ent, TournamentVetoAction::Ban, args.getString(1), message)) {
+			if (!message.empty())
+				gi.Client_Print(ent, PRINT_HIGH, G_Fmt("{}\n", message).data());
+			return;
+		}
+
+		if (!message.empty())
+			gi.Client_Print(ent, PRINT_HIGH, G_Fmt("{}\n", message).data());
+	}
+
+	void TourneyStatus(gentity_t* ent, const CommandArgs& args) {
+		const std::string status = Tournament_GetVetoStatus();
+		gi.Client_Print(ent, PRINT_HIGH, G_Fmt("{}\n", status).data());
 	}
 
 	/*
@@ -1102,6 +1147,10 @@ Toggles the eyecam view when following other players.
 	}
 
 	void JoinTeam(gentity_t* ent, const CommandArgs& args) {
+		if (Tournament_IsActive()) {
+			gi.Client_Print(ent, PRINT_HIGH, "Team changes are disabled during tournaments.\n");
+			return;
+		}
 		if (args.count() < 2) {
 			const char* teamName = "spectating";
 			if (ClientIsPlaying(ent->client)) {
@@ -1558,6 +1607,9 @@ Toggles the eyecam view when following other players.
 		RegisterCommand("team", &JoinTeam, AllowDead | AllowSpectator);
 		RegisterCommand("timein", &TimeIn, AllowDead | AllowSpectator);
 		RegisterCommand("timeout", &TimeOut, AllowDead | AllowSpectator);
+		RegisterCommand("tourney_ban", &TourneyBan, AllowDead | AllowSpectator);
+		RegisterCommand("tourney_pick", &TourneyPick, AllowDead | AllowSpectator);
+		RegisterCommand("tourney_status", &TourneyStatus, AllowDead | AllowSpectator);
 		RegisterCommand("timer", &Timer, AllowSpectator | AllowDead);
 		RegisterCommand("unhook", &UnHook, {}, true);
 		RegisterCommand("wave", &Wave);

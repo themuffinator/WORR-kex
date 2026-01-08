@@ -70,7 +70,7 @@
         <tr>
           <td><code>gametype</code></td>
           <td>integer</td>
-          <td>Default gametype index loaded when the map boots (`0` is Practice Mode for no-score warmups with self-damage disabled).</td>
+          <td>Default gametype index loaded when the map boots (omit or use <code>0</code> for no override).</td>
           <td><strong>Gates auto-rotation.</strong> Used when a cycle entry omits overrides.</td>
         </tr>
         <tr>
@@ -80,7 +80,7 @@
           <td><strong>Gates rotation.</strong> Selector avoids mismatched rulesets for the current playlist.</td>
         </tr>
         <tr>
-          <td><code>scorelimit</code>, <code>timelimit</code></td>
+          <td><code>scorelimit</code>, <code>timeLimit</code></td>
           <td>integer</td>
           <td>Per-map overrides for match objectives.</td>
           <td>Applied on load; does not affect selection.</td>
@@ -109,7 +109,7 @@
       "gametype": 1,
       "ruleset": 0,
       "scorelimit": 30,
-      "timelimit": 15,
+      "timeLimit": 15,
       "popular": true
     },
     {

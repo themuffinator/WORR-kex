@@ -4583,6 +4583,12 @@ void SetItemNames() {
 	for (item_id_t i = IT_NULL; i < IT_TOTAL; i = static_cast<item_id_t>(i + 1))
 		gi.configString(CS_ITEMS + i, itemList[i].pickupName);
 
+	for (item_id_t i = IT_NULL; i < IT_TOTAL; i = static_cast<item_id_t>(i + 1)) {
+		itemList[i].ammoWheelIndex = -1;
+		itemList[i].weaponWheelIndex = -1;
+		itemList[i].powerupWheelIndex = -1;
+	}
+
 	// [Paril-KEX] set ammo wheel indices first
 	int32_t cs_index = 0;
 
@@ -4590,8 +4596,10 @@ void SetItemNames() {
 		if (!(itemList[i].flags & IF_AMMO))
 			continue;
 
-		if (cs_index >= MAX_WHEEL_ITEMS)
-			gi.Com_Error("Out of wheel indices.");
+		if (cs_index >= MAX_WHEEL_ITEMS) {
+			gi.Com_PrintFmt("SetItemNames: too many ammo wheel items (max {}); truncating list.\n", MAX_WHEEL_ITEMS);
+			break;
+		}
 
 		gi.configString(CS_WHEEL_AMMO + cs_index, G_Fmt("{}|{}", (int32_t)i, gi.imageIndex(itemList[i].icon)).data());
 		itemList[i].ammoWheelIndex = cs_index;
@@ -4605,8 +4613,10 @@ void SetItemNames() {
 		if (!(itemList[i].flags & IF_WEAPON))
 			continue;
 
-		if (cs_index >= MAX_WHEEL_ITEMS)
-			gi.Com_Error("Out of wheel indices.");
+		if (cs_index >= MAX_WHEEL_ITEMS) {
+			gi.Com_PrintFmt("SetItemNames: too many weapon wheel items (max {}); truncating list.\n", MAX_WHEEL_ITEMS);
+			break;
+		}
 
 		int32_t min_ammo = (itemList[i].flags & IF_AMMO) ? 1 : itemList[i].quantity;
 
@@ -4631,8 +4641,10 @@ void SetItemNames() {
 		if (!(itemList[i].flags & IF_POWERUP_WHEEL) || (itemList[i].flags & IF_WEAPON))
 			continue;
 
-		if (cs_index >= MAX_WHEEL_ITEMS)
-			gi.Com_Error("Out of wheel indices.");
+		if (cs_index >= MAX_WHEEL_ITEMS) {
+			gi.Com_PrintFmt("SetItemNames: too many powerup wheel items (max {}); truncating list.\n", MAX_WHEEL_ITEMS);
+			break;
+		}
 
 		gi.configString(CS_WHEEL_POWERUPS + cs_index, G_Fmt("{}|{}|{}|{}|{}|{}",
 			(int32_t)i,

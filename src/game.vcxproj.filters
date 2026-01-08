@@ -465,9 +465,12 @@
       <Filter>monsters</Filter>
     </ClCompile>
     <ClCompile Include="server\gameplay\g_map_manager.cpp" />
-    <ClCompile Include="server\menu\menu_page_admin.cpp">
-      <Filter>menu</Filter>
-    </ClCompile>
+  <ClCompile Include="server\menu\menu_page_admin.cpp">
+    <Filter>menu</Filter>
+  </ClCompile>
+  <ClCompile Include="server\menu\menu_page_admin_commands.cpp">
+    <Filter>menu</Filter>
+  </ClCompile>
     <ClCompile Include="server\menu\menu_page_callvote.cpp">
       <Filter>menu</Filter>
     </ClCompile>
@@ -588,6 +591,9 @@
       <Filter>matches</Filter>
     </ClCompile>
     <ClCompile Include="server\match\match_state.cpp">
+      <Filter>matches</Filter>
+    </ClCompile>
+    <ClCompile Include="server\match\tournament.cpp">
       <Filter>matches</Filter>
     </ClCompile>
     <ClCompile Include="server\gameplay\g_ai.cpp">

@@ -10,7 +10,7 @@ Commands are grouped by responsibility so hosts, admins, and players can locate 
 | `drop` / `dropindex` | Live players | Drop current weapon or a specific inventory index. |
 | `eyecam` | Spectators | Toggles chase camera to orbit points of interest. |
 | `follow`, `followkiller`, `followleader`, `followpowerup` | Dead players & spectators | Cycle chase targets during spectating. |
-| `forfeit` | Live players | Requests a team forfeit in elimination modes (subject to server policy). |
+| `forfeit` | Live players | Concede the current Duel/Gauntlet match when forfeits are enabled. |
 | `help` / `inven` / `score` | All | Display usage help, inventory browser, or scoreboard without leaving the arena. |
 | `hook` / `unhook` | All | Engage or release the grappling hook when enabled. |
 | `id` | All | Toggles crosshair IDs when `match_crosshair_ids` is active. |
@@ -25,6 +25,9 @@ Commands are grouped by responsibility so hosts, admins, and players can locate 
 | `sr` | All | Display personal skill rating estimate used for balance. |
 | `stats` | Spectators & intermission | Show detailed match stats overlay. |
 | `team` | Dead players & spectators | Join or switch teams when allowed. |
+| `tourney_ban` | Dead players & spectators | Ban a map during tournament veto (captain only). |
+| `tourney_pick` | Dead players & spectators | Pick a map during tournament veto (captain only). |
+| `tourney_status` | Dead players & spectators | Show current tournament pool, picks, bans, and next turn. |
 | `timeout` / `timein` / `timer` | All | Consume timeouts, resume play, or show personal timers. |
 | `use*` | All | Activate items by name or index (weapons, techs). |
 | `weapnext` / `weapprev` / `weaplast` | All | Cycle weapon inventory in either direction. |
@@ -46,9 +49,9 @@ These require a logged-in admin user (see `/admin`).
 | `arena` | Force a specific arena layout in Arena/RA2 playlists. |
 | `balance` / `shuffle` | Trigger skill-based team balancing or random shuffles. |
 | `boot` | Kick a player from the server (with messaging). |
-| `end_match` / `reset_match` / `start_match` | Control match lifecycle manually (end now, wipe scores, start immediately). |
+| `end_match` / `reset_match` / `replay` / `start_match` | Control match lifecycle manually (end now, wipe scores, replay a tournament game, start immediately). |
 | `force_vote` | Override the current vote result (force pass/fail). |
-| `gametype` / `ruleset` | Switch active gametype or ruleset instantly (`gametype practice` enables no-score warmups without self-damage). |
+| `gametype` / `ruleset` | Switch active gametype or ruleset instantly (`gametype none` selects a no-score ruleset; use `g_practice 1` for warmup-only sessions). |
 | `load_mappool` / `load_mapcycle` / `load_motd` | Reload map or MOTD assets from disk after edits. |
 | `lock_team` / `unlock_team` | Prevent or allow team joins for specific colors. |
 | `map_restart` / `next_map` / `set_map` | Restart the current map, advance to cycle entry, or load a specific BSP. |
@@ -61,7 +64,7 @@ These commands are guarded by the `cheats` cvar and primarily support offline te
 | Command | Summary |
 | --- | --- |
 | `give`, `god`, `immortal`, `noclip`, `notarget`, `teleport` | Standard Quake-style cheat toggles for inventory, invulnerability, movement, and relocation. |
-| `alert_all` | Broadcast a center-print message to all players for announcements. |
+| `alert_all` | Forces all monsters to target you immediately. |
 | `check_poi` / `set_poi` / `target` | Inspect and manipulate saved points-of-interest for scripted sequences. |
 | `clear_ai_enemy` / `kill_ai` | Reset or slay targeted AI actors while debugging encounters. |
 | `list_entities` / `list_monsters` | Dump active entity or monster tables to the console with optional filtering. |

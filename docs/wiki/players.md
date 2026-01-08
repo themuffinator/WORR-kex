@@ -18,35 +18,48 @@
 ## Gametype Cheat Sheet
 | Mode | Console Short Name | Core Focus & Notes | Quick Reference |
 | --- | --- | --- | --- |
-| Campaign | `cmp` | Solo/co-op progression with standard objectives. | - |
-| Practice Mode | `practice` | No-score warmup with self-damage disabled; great for aim drills and map walks. | `g_gametype 0` |
 | Free For All | `ffa` | Classic deathmatch; highest frag count wins. | - |
 | Duel | `duel` | 1v1 spotlight with frag scoring; ideal for focused skill checks. | - |
-| Team Deathmatch | `tdm` | Teams race to frag limit; communication decides trades. | — |
+| Team Deathmatch | `tdm` | Teams race to frag limit; communication decides trades. | - |
 | Domination | `dom` | Capture and hold control points for continuous scoring; flip bonuses reward aggression. | [Domination guide](../domination.md) |
-| Capture The Flag | `ctf` | Flag runs and returns define the pace. | — |
-| Clan Arena | `ca` | Round-based team elimination with arena loadouts. | — |
-| One Flag | `oneflag` | Shared neutral flag—coordinate escorts both ways. | — |
-| Harvester | `har` | Collect enemy skulls and score at your base. | — |
+| Capture The Flag | `ctf` | Flag runs and returns define the pace. | - |
+| Clan Arena | `ca` | Round-based team elimination with arena loadouts. | - |
+| One Flag | `oneflag` | Shared neutral flag-coordinate escorts both ways. | - |
+| Harvester | `har` | Collect enemy skulls and score at your base. | - |
 | Head Hunters | `hh` | Collect dropped heads and cash them in at receptacles for scoring bursts. | [Head Hunters guide](../headhunters.md) |
-| Overload | `overload` | Destroy the enemy obelisk to score; defend your own. | — |
-| Freeze Tag | `ft` | Freeze foes instead of fragging; thaw teammates to win rounds. | — |
-| CaptureStrike | `strike` | Hybrid round play with capture objectives and elimination stakes. | — |
-| Red Rover | `rr` | Swapping sides on death keeps pressure constant; manage spawns. | — |
-| Last Man Standing | `lms` | Everyone gets limited lives—play cautiously. | — |
-| Last Team Standing | `lts` | Team variant of LMS; protect allies’ life pools. | — |
-| Horde Mode | `horde` | Survive PvE waves with periodic breaks. | — |
-| ProBall | `ball` | Team sports twist—control the ball to score. | — |
-| Gauntlet | `gauntlet` | Duel-centric rounds emphasizing precision frags. | — |
+| Overload | `overload` | Destroy the enemy obelisk to score; defend your own. | - |
+| Freeze Tag | `ft` | Freeze foes instead of fragging; thaw teammates to win rounds. | - |
+| CaptureStrike | `strike` | Hybrid round play with capture objectives and elimination stakes. | - |
+| Red Rover | `rr` | Swapping sides on death keeps pressure constant; manage spawns. | - |
+| Last Man Standing | `lms` | Everyone gets limited lives-play cautiously. | - |
+| Last Team Standing | `lts` | Team variant of LMS; protect allies' life pools. | - |
+| Horde Mode | `horde` | Survive PvE waves with periodic breaks. | - |
+| ProBall | `ball` | Team sports twist-control the ball to score. | - |
+| Gauntlet | `gauntlet` | Duel-centric rounds emphasizing precision frags. | - |
 
-> **Tip:** Loadouts, scoring rules, and round flow come from the flags defined in `GameTypeInfo`. Practice Mode (`g_gametype 0` or `gametype practice`) keeps the map live with no-score and self-damage disabled, which is great for warmups. The console short name is the value to feed `g_gametype` or the Call Vote menu. Consult mode-specific docs (e.g., Domination above) when a lobby needs deeper strategy, and map authors can reference the [Entity Catalogue](level-design.md#entity-catalogue) to double-check spawn and objective coverage before sharing workshop builds.
+## Practice Format
+- Set `g_practice 1` to keep the lobby in warmup (no scoring) while still using your chosen gametype.
+- Disable self-damage for drills with `g_self_damage 0` if the host allows it.
+- Use `gametype none` (`g_gametype 0`) only when you want a no-score, no self-damage ruleset outside the warmup flow.
+
+> **Tip:** Loadouts, scoring rules, and round flow come from the flags defined in `GAME_MODES`. The console short name is the value to feed `g_gametype` or the Call Vote menu. For warmups, keep `g_practice 1` so the lobby stays in warmup. Consult mode-specific docs (e.g., Domination above) when a lobby needs deeper strategy, and map authors can reference the [Entity Catalogue](level-design.md#entity-catalogue) to double-check spawn and objective coverage before sharing workshop builds.
 
 ## Voting and Match Etiquette
 - Want the complete syntax for `callvote`, ready commands, or spectator tools? Check the [Command Reference](commands.md) for detailed usage notes to share with teammates before calling for action.
-- **How votes unlock:** Server hosts mask vote commands with `g_vote_flags`. Each bit toggles an item (map, restart, gametype, limits, shuffle/balance, unlagged, arena, etc.). Default servers enable all flags (`8191`), showing every option.
-- **Reading the menu:** If a choice is missing, the host likely cleared that bit—ask before spamming chat, and remember hosts may restrict disruptive calls like `shuffle` during events.
-- **Etiquette:** Call votes with a clear reason (“Restart for overtime bugged scoreboard”) and allow the countdown to finish. Avoid chaining failed votes; wait a few minutes or until the match state changes. Hosts appreciate players rallying support in team chat before triggering global prompts.
+- **How votes unlock:** Server hosts mask vote commands with `g_vote_flags`. Each bit toggles an item (map, restart, gametype, limits, shuffle/balance, unlagged, arena, forfeit, etc.). Default servers enable all flags (`16383`), showing every option.
+- **Reading the menu:** If a choice is missing, the host likely cleared that bit-ask before spamming chat, and remember hosts may restrict disruptive calls like `shuffle` during events.
+- **Etiquette:** Call votes with a clear reason ("Restart for overtime bugged scoreboard") and allow the countdown to finish. Avoid chaining failed votes; wait a few minutes or until the match state changes. Hosts appreciate players rallying support in team chat before triggering global prompts.
 - **Want to know the knobs?** The [Cvar Reference](cvars.md#voting-admin-and-moderation) breaks down which server toggles influence the vote menu, warmup readiness, and timeout privileges.
+
+## Tournament Play
+- Tournament lobbies lock rosters to social IDs; only listed participants can spawn and the join menu hides join/spectate options.
+- Once everyone is ready, the veto menu appears: home picks or bans first, then away, then back to home.
+- Captains can still use `tourney_pick`/`tourney_ban` in console, and anyone can check `tourney_status`.
+- Ready-up is mandatory for veto and match start.
+- Map Choices appears in the join menu after veto, listing the game order.
+- If someone disconnects mid-map, the server may trigger a timeout to let them rejoin.
+
+Want the full flow? See the [Tournament Format Guide](tournaments.md) for config details and veto flow notes.
 
 ## Reconnect Safeguards and Ghost Tips
 - **Pending Ghost Respawns:** WORR caches your last position/angles when the auto-ghost system is active. On rejoin, it first checks if your ghost spot is clear of players or geometry before spawning you there.

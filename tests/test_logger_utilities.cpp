@@ -21,21 +21,21 @@ Validate logger utilities parsing, environment handling, ordering, and formattin
 */
 int main()
 {
-	// ParseLogLevel accepts various valid inputs and defaults to Info for unknown values.
+	// ParseLogLevel accepts various valid inputs and defaults to Warn for unknown values.
 	assert(ParseLogLevel("TRACE") == LogLevel::Trace);
 	assert(ParseLogLevel("debug") == LogLevel::Debug);
 	assert(ParseLogLevel("Warn") == LogLevel::Warn);
 	assert(ParseLogLevel("warning") == LogLevel::Warn);
 	assert(ParseLogLevel("error") == LogLevel::Error);
-	assert(ParseLogLevel("anything-else") == LogLevel::Info);
+	assert(ParseLogLevel("anything-else") == LogLevel::Warn);
 
 	// ReadLogLevelFromEnv respects unset, valid, and invalid environment values.
 	unsetenv("WORR_LOG_LEVEL");
-	assert(ReadLogLevelFromEnv() == LogLevel::Info);
+	assert(ReadLogLevelFromEnv() == LogLevel::Warn);
 	setenv("WORR_LOG_LEVEL", "DEBUG", 1);
 	assert(ReadLogLevelFromEnv() == LogLevel::Debug);
 	setenv("WORR_LOG_LEVEL", "unknown", 1);
-	assert(ReadLogLevelFromEnv() == LogLevel::Info);
+	assert(ReadLogLevelFromEnv() == LogLevel::Warn);
 	unsetenv("WORR_LOG_LEVEL");
 
 	// LevelWeight enforces strict ordering from trace through error.

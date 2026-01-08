@@ -626,7 +626,22 @@ G_CalcBlend
 
 static void G_CalcBlend(gentity_t* ent) {
 	GameTime remaining;
+	ent->client->ps.screenBlend = {};
 	ent->client->ps.damageBlend = {};
+
+	// Base blend from current view contents (water, slime, lava).
+	const Vector3 viewOrg = ent->s.origin + ent->client->ps.viewOffset +
+		Vector3{ 0.0f, 0.0f, static_cast<float>(ent->client->ps.pmove.viewHeight) };
+	const contents_t contents = gi.pointContents(viewOrg);
+	if (contents & (CONTENTS_SOLID | CONTENTS_LAVA)) {
+		G_AddBlend(1.0f, 0.3f, 0.0f, 0.6f, ent->client->ps.screenBlend);
+	}
+	else if (contents & CONTENTS_SLIME) {
+		G_AddBlend(0.0f, 0.1f, 0.05f, 0.6f, ent->client->ps.screenBlend);
+	}
+	else if (contents & CONTENTS_WATER) {
+		G_AddBlend(0.5f, 0.3f, 0.2f, 0.4f, ent->client->ps.screenBlend);
+	}
 
 	auto BlendIfExpiring = [&](GameTime end_time, float r, float g, float b, float max_alpha, const char* sound = nullptr) {
 		if (end_time > level.time) {
@@ -912,10 +927,13 @@ static void ClientSetEffects(gentity_t* ent) {
 			ent->s.effects |= EF_DUALFIRE;
 	if (ent->client->PowerupTimer(PowerupTimer::DoubleDamage) > level.time)
 		if (G_PowerUpExpiring(ent->client->PowerupTimer(PowerupTimer::DoubleDamage)))
-			ent->s.effects |= EF_QUAD;
+			ent->s.effects |= EF_DOUBLE;
 	if (ent->client->PowerupTimer(PowerupTimer::EmpathyShield) > level.time)
-		if (G_PowerUpExpiring(ent->client->PowerupTimer(PowerupTimer::EmpathyShield)))
+		if (G_PowerUpExpiring(ent->client->PowerupTimer(PowerupTimer::EmpathyShield))) {
 			ent->s.effects |= EF_EMPATHY;
+			ent->s.effects |= EF_COLOR_SHELL;
+			ent->s.renderFX |= RF_SHELL_RED;
+		}
 	if ((ent->client->ownedSphere) && (ent->client->ownedSphere->spawnFlags == SF_SPHERE_DEFENDER))
 		ent->s.effects |= EF_HALF_DAMAGE;
 	if (ent->client->trackerPainTime > level.time)
@@ -958,6 +976,32 @@ static void ClientSetEvent(gentity_t* ent) {
 	else if (ent->groundEntity && xySpeed > 225) {
 		if ((int)(currentClient->feedback.bobTime + bobMove) != bobCycleRun)
 			ent->s.event = EV_FOOTSTEP;
+	}
+}
+
+static inline bool IsFollowFootstepEvent(entity_event_t event) {
+	switch (event) {
+	case EV_FOOTSTEP:
+	case EV_LADDER_STEP:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static void ForwardFollowFootsteps(gentity_t* ent) {
+	if (!g_eyecam->integer)
+		return;
+
+	if (!IsFollowFootstepEvent(ent->s.event))
+		return;
+
+	for (auto spec : active_clients()) {
+		if (!spec->client || spec->client->follow.target != ent)
+			continue;
+		if (spec->s.event)
+			continue;
+		spec->s.event = ent->s.event;
 	}
 }
 
@@ -1325,7 +1369,8 @@ static void PlayQueuedAwardSound(gentity_t* ent) {
 	auto* cl = ent->client;
 	auto& queue = cl->pers.awardQueue;
 
-	if (queue.queueSize <= 0 || level.time < queue.nextPlayTime)
+	if (queue.queueSize <= 0 || level.time < queue.nextPlayTime ||
+		level.time < cl->pers.announcerNextTime)
 		return;
 
 	int index = queue.playIndex;
@@ -1333,18 +1378,29 @@ static void PlayQueuedAwardSound(gentity_t* ent) {
 		return;
 
 	// Play sound
-	gi.localSound(
-		ent,
-		static_cast<soundchan_t>(CHAN_RELIABLE | CHAN_NO_PHS_ADD | CHAN_AUX),
-		queue.soundIndex[index],
-		1.0f,
-		ATTN_NONE,
-		0.0f,
-		0
-	);
+	if (queue.soundIndex[index] > 0) {
+		gi.localSound(
+			ent,
+			static_cast<soundchan_t>(CHAN_RELIABLE | CHAN_NO_PHS_ADD | CHAN_AUX),
+			queue.soundIndex[index],
+			1.0f,
+			ATTN_NONE,
+			0.0f,
+			0
+		);
+	}
+
+	const auto medal = queue.medal[index];
+	if (medal != PlayerMedal::None) {
+		cl->pers.medalType = medal;
+		cl->pers.medalTime = level.time;
+		cl->pers.medalDisplayCount =
+			queue.count[index] > 0 ? queue.count[index] : 1;
+	}
 
 	// Schedule next play
 	queue.nextPlayTime = level.time + 1800_ms; // delay between awards
+	cl->pers.announcerNextTime = std::max(cl->pers.announcerNextTime, queue.nextPlayTime);
 
 	// Shift queue
 	queue.playIndex++;
@@ -1380,6 +1436,9 @@ void ClientEndServerFrame(gentity_t* ent) {
 
 	// check goals
 	G_PlayerNotifyGoal(ent);
+
+	if (!level.intermission.time)
+		PlayQueuedAwardSound(ent);
 
 	// vampiric damage expiration
 	// don't expire if only 1 player in the match
@@ -1573,6 +1632,7 @@ void ClientEndServerFrame(gentity_t* ent) {
 	SetCoopStats(ent);
 
 	ClientSetEvent(ent);
+	ForwardFollowFootsteps(ent);
 
 	ClientSetEffects(e);
 

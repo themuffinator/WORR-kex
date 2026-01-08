@@ -533,6 +533,18 @@ struct MatchStats {
 };
 MatchStats matchStats;
 
+struct TournamentSeriesSnapshot {
+	std::string seriesId;
+	std::string name;
+	int bestOf = 1;
+	int winTarget = 1;
+	bool teamBased = false;
+	GameType gametype = GameType::None;
+	std::vector<json> matches;
+};
+
+static std::unordered_map<std::string, TournamentSeriesSnapshot> g_tournamentSeries;
+
 static std::atomic<uint64_t> g_matchStatsNextJobID{ 1 };
 static std::atomic<uint32_t> g_matchStatsPendingJobs{ 0 };
 static std::atomic<uint32_t> g_matchStatsCompletedJobs{ 0 };
@@ -608,6 +620,216 @@ static bool MatchStats_WriteJson(const MatchStats& matchStats, const std::string
 	}
 
 	return false;
+}
+
+static std::string TournamentSeriesFileId(std::string_view seriesId) {
+	std::string sanitized = SanitizeSocialID(seriesId);
+	if (sanitized.empty())
+		return "series";
+	return sanitized;
+}
+
+static const char* TournamentTeamKey(Team team) {
+	switch (team) {
+	case Team::Red:
+		return "red";
+	case Team::Blue:
+		return "blue";
+	case Team::Free:
+		return "free";
+	case Team::Spectator:
+		return "spectator";
+	default:
+		return "none";
+	}
+}
+
+static int TournamentPlayerWinsForId(std::string_view id) {
+	if (id.empty())
+		return 0;
+
+	for (size_t i = 0; i < game.tournament.playerIds.size(); ++i) {
+		if (game.tournament.playerIds[i] == id)
+			return game.tournament.playerWins[i];
+	}
+
+	return 0;
+}
+
+static json TournamentSeries_BuildJson(const TournamentSeriesSnapshot& series) {
+	json seriesJson;
+	seriesJson["seriesId"] = series.seriesId;
+	if (!series.name.empty())
+		seriesJson["name"] = series.name;
+	seriesJson["bestOf"] = series.bestOf;
+	seriesJson["winTarget"] = series.winTarget;
+	seriesJson["gametype"] = std::string(Game::GetInfo(series.gametype).short_name_upper);
+
+	seriesJson["matches"] = json(Json::arrayValue);
+	for (const auto& matchJson : series.matches) {
+		seriesJson["matches"].append(matchJson);
+	}
+
+	seriesJson["mapPool"] = json(Json::arrayValue);
+	for (const auto& map : game.tournament.mapPool) {
+		seriesJson["mapPool"].append(map);
+	}
+
+	seriesJson["mapBans"] = json(Json::arrayValue);
+	for (const auto& map : game.tournament.mapBans) {
+		seriesJson["mapBans"].append(map);
+	}
+
+	seriesJson["mapPicks"] = json(Json::arrayValue);
+	for (const auto& map : game.tournament.mapPicks) {
+		seriesJson["mapPicks"].append(map);
+	}
+
+	seriesJson["mapOrder"] = json(Json::arrayValue);
+	for (const auto& map : game.tournament.mapOrder) {
+		seriesJson["mapOrder"].append(map);
+	}
+
+	seriesJson["participants"] = json(Json::arrayValue);
+	for (const auto& participant : game.tournament.participants) {
+		json entry;
+		entry["id"] = participant.socialId;
+		if (!participant.name.empty())
+			entry["name"] = participant.name;
+		entry["team"] = TournamentTeamKey(participant.lockedTeam);
+		entry["wins"] = TournamentPlayerWinsForId(participant.socialId);
+		seriesJson["participants"].append(entry);
+	}
+
+	if (game.tournament.teamBased) {
+		json teamsJson;
+		json redJson;
+		json blueJson;
+		redJson["name"] = Teams_TeamName(Team::Red);
+		blueJson["name"] = Teams_TeamName(Team::Blue);
+		redJson["wins"] = game.tournament.teamWins[static_cast<size_t>(Team::Red)];
+		blueJson["wins"] = game.tournament.teamWins[static_cast<size_t>(Team::Blue)];
+		teamsJson["red"] = std::move(redJson);
+		teamsJson["blue"] = std::move(blueJson);
+		seriesJson["teams"] = std::move(teamsJson);
+	}
+
+	return seriesJson;
+}
+
+static bool TournamentSeries_WriteJson(const TournamentSeriesSnapshot& series, const std::string& fileName) {
+	try {
+		WriteFileAtomically(fileName, [&](std::ofstream& file) {
+			Json::StreamWriterBuilder writer;
+			writer["indentation"] = "    ";
+			std::string output = Json::writeString(writer, TournamentSeries_BuildJson(series));
+			file << output;
+		});
+		gi.Com_PrintFmt("Tournament series JSON written to {}\n", fileName.c_str());
+		return true;
+	}
+	catch (const std::exception& e) {
+		gi.Com_PrintFmt("Exception while writing series JSON ({}): {}\n", fileName.c_str(), e.what());
+	}
+	catch (...) {
+		gi.Com_PrintFmt("Unknown error while writing series JSON ({})\n", fileName.c_str());
+	}
+
+	return false;
+}
+
+static bool TournamentSeries_WriteHtml(const TournamentSeriesSnapshot& series, const std::string& fileName) {
+	try {
+		WriteFileAtomically(fileName, [&](std::ofstream& html) {
+			const std::string title = series.name.empty() ? series.seriesId : series.name;
+			html << "<!DOCTYPE html>\n<html lang=\"en\"><head><meta charset=\"UTF-8\">\n";
+			html << "<title>Tournament Series - " << HtmlEscape(title) << "</title>\n";
+			html << "<style>body{font-family:Arial,sans-serif;background:#f4f4f4;margin:0;padding:20px;}";
+			html << "h1,h2{margin:0 0 10px;}table{width:100%;border-collapse:collapse;background:#fff;}";
+			html << "th,td{padding:8px 10px;border:1px solid #ddd;text-align:left;}</style>";
+			html << "</head><body>\n";
+			html << "<h1>Tournament Series</h1>\n";
+			html << "<p><strong>Series ID:</strong> " << HtmlEscape(series.seriesId) << "</p>\n";
+			if (!series.name.empty())
+				html << "<p><strong>Name:</strong> " << HtmlEscape(series.name) << "</p>\n";
+			html << "<p><strong>Best Of:</strong> " << series.bestOf << "</p>\n";
+			html << "<p><strong>Gametype:</strong> "
+				 << HtmlEscape(Game::GetInfo(series.gametype).long_name) << "</p>\n";
+
+			if (series.teamBased) {
+				html << "<h2>Teams</h2>\n<table>\n<tr><th>Team</th><th>Wins</th></tr>\n";
+				html << "<tr><td>" << HtmlEscape(Teams_TeamName(Team::Red)) << "</td><td>"
+					 << game.tournament.teamWins[static_cast<size_t>(Team::Red)] << "</td></tr>\n";
+				html << "<tr><td>" << HtmlEscape(Teams_TeamName(Team::Blue)) << "</td><td>"
+					 << game.tournament.teamWins[static_cast<size_t>(Team::Blue)] << "</td></tr>\n";
+				html << "</table>\n";
+			}
+			else {
+				html << "<h2>Players</h2>\n<table>\n<tr><th>Player</th><th>Wins</th></tr>\n";
+				for (const auto& participant : game.tournament.participants) {
+					html << "<tr><td>" << HtmlEscape(participant.name.empty() ? participant.socialId : participant.name)
+						 << "</td><td>" << TournamentPlayerWinsForId(participant.socialId) << "</td></tr>\n";
+				}
+				html << "</table>\n";
+			}
+
+			if (!game.tournament.mapOrder.empty()) {
+				html << "<h2>Map Order</h2>\n<ol>\n";
+				for (const auto& map : game.tournament.mapOrder) {
+					html << "<li>" << HtmlEscape(map) << "</li>\n";
+				}
+				html << "</ol>\n";
+			}
+
+			html << "<h2>Matches</h2>\n<ol>\n";
+			for (const auto& matchJson : series.matches) {
+				const std::string matchId = matchJson["matchID"].asString();
+				const std::string mapName = matchJson["mapName"].asString();
+				html << "<li>" << HtmlEscape(mapName) << " - <a href=\""
+					 << HtmlEscape(matchId) << ".html\">" << HtmlEscape(matchId) << "</a></li>\n";
+			}
+			html << "</ol>\n</body></html>\n";
+		});
+		gi.Com_PrintFmt("Tournament series HTML written to {}\n", fileName.c_str());
+		return true;
+	}
+	catch (const std::exception& e) {
+		gi.Com_PrintFmt("Exception while writing series HTML ({}): {}\n", fileName.c_str(), e.what());
+	}
+	catch (...) {
+		gi.Com_PrintFmt("Unknown error while writing series HTML ({})\n", fileName.c_str());
+	}
+
+	return false;
+}
+
+static bool TournamentSeries_WriteAll(const TournamentSeriesSnapshot& series, const std::string& baseFilePath) {
+	const std::filesystem::path basePath(baseFilePath);
+	const std::filesystem::path directory = basePath.parent_path();
+
+	if (!directory.empty()) {
+		std::error_code dirError;
+		std::filesystem::create_directories(directory, dirError);
+		if (dirError) {
+			gi.Com_PrintFmt("{}: Failed to create directory '{}': {}\n", __FUNCTION__, directory.string().c_str(), dirError.message().c_str());
+			return false;
+		}
+	}
+
+	const bool jsonWritten = TournamentSeries_WriteJson(series, baseFilePath + ".json");
+	bool htmlWritten = true;
+	if (g_statex_export_html->integer) {
+		htmlWritten = TournamentSeries_WriteHtml(series, baseFilePath + ".html");
+	}
+	else {
+		gi.Com_PrintFmt("{}: HTML export disabled via g_statex_export_html.\n", __FUNCTION__);
+	}
+
+	if (!jsonWritten || !htmlWritten) {
+		gi.Com_PrintFmt("{}: Series export completed with errors (JSON: {}, HTML: {})\n", __FUNCTION__, jsonWritten ? "ok" : "failed", htmlWritten ? "ok" : "failed");
+	}
+
+	return jsonWritten && htmlWritten;
 }
 
 
@@ -2538,6 +2760,30 @@ void MatchStats_End() {
 
 		ValidateModTotals(matchStats);
 		SendIndividualMiniStats(matchStats);
+
+		if (Tournament_IsActive() && game.tournament.configLoaded &&
+			!game.tournament.seriesId.empty()) {
+			auto& series = g_tournamentSeries[game.tournament.seriesId];
+			if (series.matches.empty()) {
+				series.seriesId = game.tournament.seriesId;
+				series.name = game.tournament.name;
+				series.bestOf = game.tournament.bestOf;
+				series.winTarget = game.tournament.winTarget;
+				series.teamBased = game.tournament.teamBased;
+				series.gametype = game.tournament.gametype;
+			}
+
+			series.matches.push_back(matchStats.toJson());
+			game.tournament.matchIds.push_back(matchStats.matchID);
+			game.tournament.matchMaps.push_back(matchStats.mapName);
+
+			if (game.tournament.seriesComplete) {
+				const std::string seriesFileId = TournamentSeriesFileId(series.seriesId);
+				const std::string seriesBasePath = MATCH_STATS_PATH + "/series_" + seriesFileId;
+				TournamentSeries_WriteAll(series, seriesBasePath);
+				g_tournamentSeries.erase(series.seriesId);
+			}
+		}
 
 		MatchStats jobSnapshot = std::move(matchStats);
 		std::string jobBasePath = MATCH_STATS_PATH + "/" + jobSnapshot.matchID;

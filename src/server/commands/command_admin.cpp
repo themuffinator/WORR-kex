@@ -33,6 +33,7 @@ namespace Commands {
 	void ReadyAll(gentity_t* ent, const CommandArgs& args);
 	void RemoveAdmin(gentity_t* ent, const CommandArgs& args);
 	void RemoveBan(gentity_t* ent, const CommandArgs& args);
+	void ReplayGame(gentity_t* ent, const CommandArgs& args);
 	void ResetMatch(gentity_t* ent, const CommandArgs& args);
 	void Ruleset(gentity_t* ent, const CommandArgs& args);
 	void SetMap(gentity_t* ent, const CommandArgs& args);
@@ -357,6 +358,37 @@ namespace Commands {
 		Match_Reset();
 	}
 
+	void ReplayGame(gentity_t* ent, const CommandArgs& args) {
+		if (args.count() < 2 || args.getString(1) == "?") {
+			PrintUsage(ent, args, "<game#> [confirm]", "", "Replays a specific tournament game.");
+			return;
+		}
+
+		auto gameNumber = args.getInt(1);
+		if (!gameNumber || *gameNumber < 1) {
+			gi.Client_Print(ent, PRINT_HIGH, "Invalid game number.\n");
+			return;
+		}
+
+		const bool confirmed = (args.count() >= 3 && (args.getString(2) == "confirm" || args.getString(2) == "yes"));
+		if (!confirmed) {
+			gi.LocClient_Print(ent, PRINT_HIGH,
+				"Replay will restart game {}. Run 'replay {} confirm' to proceed.\n",
+				*gameNumber, *gameNumber);
+			return;
+		}
+
+		std::string message;
+		if (!Tournament_ReplayGame(*gameNumber, message)) {
+			if (!message.empty()) {
+				gi.Client_Print(ent, PRINT_HIGH, G_Fmt("{}\n", message.c_str()).data());
+			}
+			return;
+		}
+
+		gi.LocClient_Print(ent, PRINT_HIGH, "Replay queued for game {}.\n", *gameNumber);
+	}
+
 	void Ruleset(gentity_t* ent, const CommandArgs& args) {
 		if (args.count() < 2 || args.getString(1) == "?") {
 			std::string usage = std::format("Current ruleset is {}.\nValid rulesets: q1, q2, q3a",
@@ -502,6 +534,7 @@ namespace Commands {
 		RegisterCommand("remove_admin", &RemoveAdmin, AdminOnly | AllowIntermission | AllowSpectator);
 		RegisterCommand("remove_ban", &RemoveBan, AdminOnly | AllowIntermission | AllowSpectator);
 		RegisterCommand("reset_match", &ResetMatch, AdminOnly | AllowIntermission | AllowSpectator);
+		RegisterCommand("replay", &ReplayGame, AdminOnly | AllowIntermission | AllowSpectator);
 		RegisterCommand("ruleset", &Ruleset, AdminOnly | AllowIntermission | AllowSpectator);
 		RegisterCommand("set_map", &SetMap, AdminOnly | AllowIntermission | AllowSpectator);
 		RegisterCommand("set_team", &SetTeam, AdminOnly | AllowIntermission | AllowSpectator);

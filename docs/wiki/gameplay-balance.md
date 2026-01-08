@@ -71,4 +71,4 @@ Bandoliers respawn every 30 seconds and Ammo Packs every 90 seconds, keeping res
 
 ## Related Settings
 
-Server hosts can fine-tune most of these values. See the [Cvar Reference](Cvars.md) and the [Server Hosts Guide](Server-Hosts.md) for the relevant knobs.
+Server hosts can fine-tune most of these values. See the [Cvar Reference](cvars.md) and the [Server Hosts Guide](server-hosts.md) for the relevant knobs.

@@ -28,14 +28,14 @@ Define the canonical list of playable maps in a JSON file referenced by `g_maps_
       "gametype": 1,
       "ruleset": 0,
       "scorelimit": 30,
-      "timelimit": 15,
+      "timeLimit": 15,
       "popular": true,
       "custom": false
     }
   ]
 }
 ```
-Required keys: `bsp`, at least one game-mode flag (`dm` for deathmatch). Optional fields tailor matchmaking constraints and defaults such as score limit overrides or preferred rulesets. Use `gametype: 1` for FFA defaults; `0` is Practice Mode (no-score, no self-damage).
+Required keys: `bsp`, at least one game-mode flag (`dm` for deathmatch). Optional fields tailor matchmaking constraints and defaults such as score limit overrides or preferred rulesets. Use `gametype: 1` for FFA defaults; omit or set `0` when you do not want a forced default. Practice format is controlled via `g_practice`.
 
 > **Design hand-off:** When curating rotation updates, point level builders to the [Entity Catalogue](level-design.md#entity-catalogue) so spawnpads, arenas, and objective triggers match the metadata you advertise to players.
 
@@ -49,7 +49,7 @@ q2dm1 q2dm2, q2dm3
 Only maps flagged `dm: true` in the active pool are eligible for the cycle.
 
 ### MyMap Queue
-Enable personal map requests with `g_maps_mymap`. Each player may queue one map; the lobby queue defaults to eight entries and can be tuned via `g_maps_mymap_queue_limit`, which evicts the oldest entry when full or rejects new requests when set to `0`.
+Enable personal map requests with `g_maps_mymap`. MyMap also respects `g_allow_mymap`, so keep both enabled. Each player may queue one map; the lobby queue defaults to eight entries and can be tuned via `g_maps_mymap_queue_limit`, which evicts the oldest entry when full or rejects new requests when set to `0`.
 Queue maps with optional overrides:
 ```text
 mymap q2dm1 +pu -ht
@@ -59,8 +59,19 @@ Flags let requesters toggle powerups, armor, ammo, health, the BFG, fall damage,
 ### Selector Voting
 `g_maps_selector` presents up to three vetted choices at match end. Candidates respect cycle eligibility, player-count bounds, recent-play cooldowns, and custom-map avoidance when necessary. Ties fall back to rotation defaults or a weighted random pick.
 
+## Tournament Format
+Tournament mode is built for organized events with locked rosters, home/away veto flow, and match sets. It is the only format that supports BO3/BO5/BO7/BO9 series and it disables standard map voting and MyMap.
+
+- Place the tournament JSON in your active gamedir (for example `baseq2/`) and set `g_tourney_cfg` to the filename.
+- The Match Setup menu shows Tournament only when the config validates; selecting it applies the config immediately.
+- All participants must connect and ready up before veto begins; home picks or bans first using the pop-up menu.
+- If a game needs to be replayed, use `replay <game#> confirm` or Admin > Replay Game.
+
+See the [Tournament Format Guide](tournaments.md) for the full schema, example configs, and veto flow details.
+
 ## `g_vote_flags` Matrix
 `g_vote_flags` is a bit field that exposes vote commands to players. Combine values with bitwise OR.
+The default value is `16383`, which enables every vote type (including `forfeit`).
 
 | Bit (1 << n) | Value | Command | Description |
 | --- | --- | --- | --- |
@@ -77,6 +88,7 @@ Flags let requesters toggle powerups, armor, ammo, health, the BFG, fall damage,
 | 10 | 1024 | `balance` | Balance teams without a shuffle. |
 | 11 | 2048 | `ruleset` | Change the active ruleset. |
 | 12 | 4096 | `arena` | Change arenas in Arena/RA2 modes. |
+| 13 | 8192 | `forfeit` | End the current match by vote. |
 
 **Recommended presets.** Tailor defaults to the match structure while preserving admin authority for disruptive actions.
 
@@ -86,7 +98,7 @@ Flags let requesters toggle powerups, armor, ammo, health, the BFG, fall damage,
 | Team Objective (TDM, CTF, DOM) | `map`, `nextmap`, `restart`, `gametype`, `timelimit`, `scorelimit`, `shuffle`, `unlagged`, `balance`, `cointoss` | 1535 | Adds cooperative tools (shuffle/balance) so teams can correct lopsided rosters mid-match. |
 | Arena / RA2 | `map`, `nextmap`, `restart`, `timelimit`, `scorelimit`, `unlagged`, `cointoss`, `arena` | 4535 | Allows players to rotate arenas while avoiding team-specific controls unnecessary in duel-style arenas. |
 
-Start with the preset that matches your primary playlist and extend it when the community requests additional autonomy (for example, enabling `ruleset` during mixed rules nights).
+Start with the preset that matches your primary playlist and extend it when the community requests additional autonomy (for example, enabling `ruleset` during mixed rules nights). Add `forfeit` to any preset when you want players to concede matches; include `8192` in the bit sum.
 
 ## Admin Command Quick Reference
 Group admin commands by the workflows they support. All commands require admin status and, unless noted, work for spectators and during intermission. See the [Command Reference](commands.md) for exhaustive syntax, permissions, and player-facing utilities.

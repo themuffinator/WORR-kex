@@ -288,6 +288,12 @@ static bool ClientInactivityTimer(gentity_t* ent) {
 		return true;
 
 	auto* cl = ent->client;
+	if (Tournament_IsActive()) {
+		cl->sess.inactivityTime = level.time + 1_min;
+		cl->sess.inactivityWarning = false;
+		cl->sess.inactiveStatus = false;
+		return true;
+	}
 
 	// Check if inactivity is enabled
 	GameTime timeout = GameTime::from_sec(g_inactivity->integer);
@@ -980,6 +986,20 @@ DisconnectResult ClientSessionServiceImpl::ClientDisconnect(local_game_import_t&
 
 	OnDisconnect(gi, ent);
 
+	if (Tournament_IsActive() && Tournament_IsParticipant(cl) &&
+		level.matchState == MatchState::In_Progress &&
+		match_timeoutLength && match_timeoutLength->integer > 0 &&
+		level.timeoutActive <= 0_ms) {
+		level.timeoutOwner = world;
+		level.timeoutActive = GameTime::from_sec(match_timeoutLength->integer);
+		game.tournament.autoTimeoutActive = true;
+		gi.LocBroadcast_Print(PRINT_CENTER,
+			".Tournament timeout: {} disconnected.\n{} remaining.",
+			cl->sess.netName,
+			TimeString(match_timeoutLength->integer * 1000, false, false));
+		G_LogEvent("MATCH TIMEOUT STARTED");
+	}
+
 	if (cl->trackerPainTime) {
 		RemoveAttackingPainDaemons(ent);
 	}
@@ -1314,6 +1334,11 @@ gentity_t* ent, usercmd_t* ucmd) {
 	}
 
 	if (level.intermission.time || cl->awaitingRespawn) {
+		// [Paril-KEX] Auto-retry delayed spawn
+		if (cl->awaitingRespawn && level.time > cl->respawnMinTime) {
+			ClientRespawn(ent);
+			if (!cl->awaitingRespawn) return;
+		}
 		cl->ps.pmove.pmType = PM_FREEZE;
 
 		bool n64_sp = false;
@@ -1428,7 +1453,6 @@ gentity_t* ent, usercmd_t* ucmd) {
 
 		Pmove(&pm);
 
-		cl->ps.screenBlend = pm.screenBlend;
 		cl->ps.rdFlags = pm.rdFlags;
 
 		const bool wasOnLadder = (previousFlags & PMF_ON_LADDER) != PMF_NONE;

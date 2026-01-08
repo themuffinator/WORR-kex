@@ -955,7 +955,7 @@ static void WidowRespondPowerup(gentity_t *self, gentity_t *other) {
                         WidowGoinQuad(self, other->client->PowerupTimer(PowerupTimer::QuadDamage));
                         WidowPowerArmor(self);
                 }
-        } else if (other->s.effects & EF_EMPATHY) {
+        } else if (other->s.effects & EF_DOUBLE) {
                 if (skill->integer == 2)
                         WidowDouble(self, other->client->PowerupTimer(PowerupTimer::DoubleDamage));
                 else if (skill->integer >= 3) {
@@ -997,7 +997,7 @@ void WidowPowerups(gentity_t *self) {
 		}
 	}
 	for (auto ec : active_clients()) {
-		if (ec->s.effects & EF_EMPATHY) {
+		if (ec->s.effects & EF_DOUBLE) {
 			WidowRespondPowerup(self, ec);
 			return;
 		}

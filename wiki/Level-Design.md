@@ -3,8 +3,8 @@
 WORR dramatically expands Quake II’s entity vocabulary, borrowing movers, targets, and monsters from classic Quake titles and popular mods. Maps can opt into curated rulesets, gametype-specific spawn logic, and JSON metadata so rotations stay responsive to player counts.
 
 ## Map Metadata & Pool Integration
-- Declare map capabilities in the JSON map pool referenced by `g_maps_pool_file`. Required key: `bsp`; optional flags advertise supported gametypes (`dm`, `tdm`, `ctf`, `duel`), player counts, and overrides such as `ruleset`, `scorelimit`, or `timelimit`.
-- If you set a default `gametype` in the pool, use `1` for FFA defaults; `0` selects Practice Mode (no-score, no self-damage).
+- Declare map capabilities in the JSON map pool referenced by `g_maps_pool_file`. Required key: `bsp`; optional flags advertise supported gametypes (`dm`, `tdm`, `ctf`, `duel`), player counts, and overrides such as `ruleset`, `scorelimit`, or `timeLimit`.
+- If you set a default `gametype` in the pool, use `1` for FFA defaults; omit or set `0` for no override (practice format uses `g_practice`).
 - Use metadata to gate selectors: maps marked `popular` or `custom` influence MyMap selection bias, while `min`/`max` prevent low- or high-pop lobbies from voting unsuitable layouts.
 - Store the pool JSON under `baseq2/` so live servers can reload it with `load_mappool` without restarting.
 

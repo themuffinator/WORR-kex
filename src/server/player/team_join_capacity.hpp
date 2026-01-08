@@ -19,6 +19,7 @@ inline TeamJoinCapacityAction EvaluateTeamJoinCapacity(
 	bool force,
 	bool wasPlaying,
 	bool duel,
+	bool allowQueue,
 	bool isHuman,
 	int playingHumans,
 	int maxPlayers) {
@@ -32,7 +33,8 @@ inline TeamJoinCapacityAction EvaluateTeamJoinCapacity(
 		return TeamJoinCapacityAction::Allow;
 
 	if (duel)
-		return TeamJoinCapacityAction::QueueForDuel;
+		return allowQueue ? TeamJoinCapacityAction::QueueForDuel
+						  : TeamJoinCapacityAction::Deny;
 
 	return TeamJoinCapacityAction::Deny;
 }

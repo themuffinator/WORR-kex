@@ -25,6 +25,11 @@ This guide catalogs WORR’s server and gameplay cvars by responsibility. Defaul
 | `warmup_do_ready_up` | `0` | Require players to `/ready` before countdown. |
 | `g_warmup_countdown` | `10` | Seconds to count down once ready conditions met. |
 | `g_warmup_ready_percentage` | `0.51` | Portion of players required to be ready. |
+| `g_practice` | `0` | Keeps the lobby in warmup (no scoring) for practice sessions. |
+| `match_setup_length` | `standard` | Stores match setup length preset (short/standard/long/endurance). |
+| `match_setup_type` | `standard` | Stores match setup type preset (casual/standard/competitive/tournament). |
+| `match_setup_bestof` | `bo1` | Stores match setup series length (BO1/BO3/BO5/BO7/BO9). |
+| `g_tourney_cfg` | `tourney.json` | Tournament config JSON filename resolved from the active gamedir or `baseq2`. |
 
 ## Match Timing & Respawn Rules
 | Cvar | Default | Notes |
@@ -52,7 +57,7 @@ This guide catalogs WORR’s server and gameplay cvars by responsibility. Defaul
 ## Gametype & Modifier Controls
 | Cvar | Default | Notes |
 | --- | --- | --- |
-| `g_gametype` | `1` (`ffa`) | Active gametype index/short name (`0` is Practice Mode for no-score warmups with self-damage disabled). |
+| `g_gametype` | `1` (`ffa`) | Active gametype index/short name (`0` is `none`, a no-score ruleset that also disables self-damage). |
 | `deathmatch` | `1` | Enables deathmatch logic when true. |
 | `teamplay` | `0` | Legacy toggle forced on for team modes. |
 | `ctf` | `0` | Legacy toggle forced on for CTF variants. |
@@ -63,10 +68,12 @@ This guide catalogs WORR’s server and gameplay cvars by responsibility. Defaul
 | `g_level_rulesets` | `0` | Allow BSP metadata to override rulesets. |
 | `g_instaGib` | `0` | Instagib modifier (latched). |
 | `g_quadhog` / `g_nadeFest` / `g_frenzy` | `0` | Additional match modifiers toggled at load. |
+| `g_gravity_lotto` | `0` | Enables Gravity Lotto modifier presets. |
 | `g_vampiric_damage` | `0` | Enables vampiric life steal; see supporting cvars for scaling. |
 | `g_allow_techs` | `auto` | Governs tech pickups across modes. |
 | `g_allow_grapple` | `auto` | Controls offhand grappling availability. |
 | `g_allow_forfeit` | `1` | Allows teams to `/forfeit`. |
+| `g_allow_duel_queue` | `1` | Enables duel/gauntlet queueing; tournaments force it off and clear the queue. |
 | `g_allow_kill` | `1` | Permit `/kill` command in lobbies. |
 | `g_allow_mymap` | `1` | Enables player map queue feature. |
 | `g_allow_voting` | `1` | Master toggle for callvote system. |
@@ -95,6 +102,7 @@ This guide catalogs WORR’s server and gameplay cvars by responsibility. Defaul
 | `g_roll_speed` / `g_roll_angle` | `200` / `2` | View roll response. |
 | `g_stop_speed` | `100` | Friction stop speed threshold. |
 | `g_knockback_scale` | `1.0` | Global knockback multiplier. |
+| `g_self_damage` | `1` | Controls self-inflicted splash damage. |
 | `g_lag_compensation` | `1` | Enables unlagged hitscan compensation. |
 | `g_instant_weapon_switch` | `0` | Latched instant weapon swapping. |
 | `g_quick_weapon_switch` | `1` | Quick switch toggle (latched). |
@@ -130,7 +138,7 @@ This guide catalogs WORR’s server and gameplay cvars by responsibility. Defaul
 | Cvar | Default | Notes |
 | --- | --- | --- |
 | `g_allow_admin` | `1` | Enables admin login flow for console commands. |
-| `g_vote_flags` | `8191` (all votes) | Bitmask enabling specific vote topics. |
+| `g_vote_flags` | `16383` (all votes) | Bitmask enabling specific vote topics (includes `forfeit`). |
 | `g_vote_limit` | `3` | Votes per player each map. |
 | `g_allow_spec_vote` | `0` | Permit spectators to initiate votes. |
 | `g_allow_vote_mid_game` | `0` | Allow votes during active matches. |

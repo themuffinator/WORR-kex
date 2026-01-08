@@ -1,7 +1,7 @@
 # `g_vote_flags` Reference
 
 The `g_vote_flags` cvar controls which vote types players can initiate. By
-default the server enables every vote (`g_vote_flags 8191`) so the Call Vote menu
+default the server enables every vote (`g_vote_flags 16383`) so the Call Vote menu
 lists all available actions. You can override this by setting the cvar to the
 bitwise OR of the options you want to allow.
 
@@ -20,5 +20,6 @@ bitwise OR of the options you want to allow.
 | 10           | 1024  | `balance`    | Balance teams without a shuffle. |
 | 11           | 2048  | `ruleset`    | Change the active ruleset. |
 | 12           | 4096  | `arena`      | Switch to another arena in Arena/RA2 modes. |
+| 13           | 8192  | `forfeit`    | End the current match by vote. |
 
 Enable the flags that match the entries you want to appear in the Call Vote menu.

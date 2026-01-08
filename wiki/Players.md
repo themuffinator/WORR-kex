@@ -1,6 +1,6 @@
 # Player Handbook
 
-WORR modernizes Quake II combat with tuned weapon physics, refreshed HUD cues, and a broad gametype roster, including Practice Mode for no-score warmups. This handbook summarizes the essentials so you can jump into any lobby prepared.
+WORR modernizes Quake II combat with tuned weapon physics, refreshed HUD cues, and a broad gametype roster, plus a practice format for warmups. This handbook summarizes the essentials so you can jump into any lobby prepared.
 
 ## Movement & Combat Changes
 - **Weapon tuning:** Rockets fly faster and deal consistent damage, Plasma Beam range and knockback are capped, and machinegun families adopt Quake III spread math for predictability.
@@ -19,7 +19,6 @@ Each gametype exposes distinct objectives and spawn logic. The short codes below
 
 | Code | Name | Core Rules |
 | --- | --- | --- |
-| `PRACTICE` | Practice Mode | No-score, no self-damage, and a live map for warmups or aim drills. |
 | `FFA` | Free For All | Classic deathmatch; first to frag limit or highest score at time limit wins. |
 | `DUEL` | Duel | 1v1 arena with Marathon queues and no spectators mid-round. |
 | `TDM` | Team Deathmatch | Team frags toward shared limit; expect autobalance on public servers. |
@@ -35,12 +34,22 @@ Each gametype exposes distinct objectives and spawn logic. The short codes below
 | `BALL` | ProBall | Ball carries score by running goals; focus on interceptions. |
 | `GAUNTLET` | Gauntlet | Winner stays, loser to the queue; duel fundamentals matter. |
 
-Tip: use `gametype practice` (or `g_gametype 0`) for no-score warmups with self-damage disabled.
+Practice format: set `g_practice 1` to keep the lobby in warmup (no scoring). Disable self-damage with `g_self_damage 0` for drills, or use `gametype none` (`g_gametype 0`) if you want a no-score ruleset outside warmup.
 
 ## Voting & Match Etiquette
 - Use `callvote` (or shorthand `cv`) to request map, ruleset, or shuffle changes. Available options depend on `g_vote_flags`-check the Call Vote menu before spamming chat.
 - Servers often disable mid-match switches via `g_allow_vote_mid_game 0`; wait for intermission before proposing disruptive changes.
 - Respect spectator ballots: some hosts allow `g_allow_spec_vote` so observers can fix imbalances without rejoining.
+
+## Tournament Play
+- Tournament lobbies lock rosters to social IDs; only listed participants can spawn and the join menu hides join/spectate options.
+- Once everyone is ready, the veto menu appears: home picks or bans first, then away, then back to home.
+- Captains can still use `tourney_pick`/`tourney_ban` in console, and anyone can check `tourney_status`.
+- Ready-up is mandatory for veto and match start.
+- Map Choices appears in the join menu after veto, listing the game order.
+- If someone disconnects mid-map, the server may trigger a timeout to let them rejoin.
+
+Want the full flow? See the [Tournament Format Guide](Tournaments.md) for config details and veto flow notes.
 
 ## Reconnects & Ghosts
 - WORR preserves your spawn state when you disconnect unexpectedly. On reconnect, the server attempts to respawn you at the stored ghost origin/angles if the spot is safe; otherwise it falls back to a standard spawn point and alerts you to blockers.

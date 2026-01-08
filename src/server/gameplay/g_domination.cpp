@@ -18,6 +18,8 @@ namespace {
 	constexpr float kDominationMaxTickIntervalSeconds = 10.0f;
 	constexpr int32_t kDominationDefaultPointsPerTick = 1;
 	constexpr float kDominationDefaultCaptureSeconds = 3.0f;
+	constexpr float kDominationDefaultNeutralizeSeconds = 2.0f;
+	constexpr int32_t kDominationDefaultCaptureBonus = 5;
 	constexpr int32_t kDominationOccupantGraceMinMs = 50;
 	constexpr int32_t kDominationOccupantGraceMaxMs = 250;
 
@@ -86,6 +88,20 @@ namespace {
 
 	/*
 	=============
+	DominationCaptureBonus
+
+	Returns the team score bonus awarded for capturing a point.
+	=============
+	*/
+	int32_t DominationCaptureBonus() {
+		if (!g_domination_capture_bonus)
+			return kDominationDefaultCaptureBonus;
+
+		return std::max<int32_t>(0, g_domination_capture_bonus->integer);
+	}
+
+	/*
+	=============
 	DominationCaptureTime
 
 	Returns how long a team must hold a point to capture it.
@@ -119,6 +135,43 @@ namespace {
 			gi.Com_PrintFmt("Domination: clamping g_domination_capture_time to {:.2f} seconds\n", seconds);
 
 		return captureTime;
+	}
+
+	/*
+	=============
+	DominationNeutralizeTime
+
+	Returns how long a team must hold a point to neutralize it.
+	=============
+	*/
+	GameTime DominationNeutralizeTime() {
+		float seconds = kDominationDefaultNeutralizeSeconds;
+		bool clamped = false;
+
+		if (g_domination_neutralize_time) {
+			const float configured = g_domination_neutralize_time->value;
+			if (std::isfinite(configured))
+				seconds = configured;
+			else
+				clamped = true;
+		}
+
+		if (!(seconds > 0.0f)) {
+			seconds = kDominationMinCaptureTime.seconds<float>();
+			clamped = true;
+		}
+
+		GameTime neutralizeTime = GameTime::from_sec(seconds);
+		if (!neutralizeTime || neutralizeTime < kDominationMinCaptureTime) {
+			seconds = std::max(seconds, kDominationMinCaptureTime.seconds<float>());
+			neutralizeTime = kDominationMinCaptureTime;
+			clamped = true;
+		}
+
+		if (clamped)
+			gi.Com_PrintFmt("Domination: clamping g_domination_neutralize_time to {:.2f} seconds\n", seconds);
+
+		return neutralizeTime;
 	}
 	/*
 	=============
@@ -356,6 +409,9 @@ namespace {
 		point.captureProgress = 0.0f;
 		point.lastProgressTime = level.time;
 		ApplyPointOwnerVisual(point);
+		const int32_t bonus = DominationCaptureBonus();
+		if (bonus > 0)
+			G_AdjustTeamScore(newOwner, bonus);
 		AnnounceCapture(point.ent, newOwner, point.index);
 	}
 
@@ -435,8 +491,9 @@ namespace {
 			delta = 0_ms;
 		point.lastProgressTime = now;
 
-		const GameTime captureTime = DominationCaptureTime();
-		const int64_t captureMs = captureTime.milliseconds();
+		const bool neutral = point.owner == Team::None;
+		const GameTime phaseTime = neutral ? DominationCaptureTime() : DominationNeutralizeTime();
+		const int64_t phaseMs = phaseTime.milliseconds();
 
 		const auto decayProgress = [&](float amount) {
 			point.captureProgress = std::max(0.0f, point.captureProgress - amount);
@@ -444,15 +501,22 @@ namespace {
 				point.capturingTeam = Team::None;
 			};
 
-		if (captureMs <= 0) {
-			if (activeTeam != Team::None && activeTeam != point.owner)
-				FinalizeCapture(point, activeTeam);
-			else if (contested || activeTeam == Team::None)
+		if (phaseMs <= 0) {
+			if (activeTeam != Team::None && activeTeam != point.owner) {
+				if (neutral) {
+					FinalizeCapture(point, activeTeam);
+				} else {
+					point.owner = Team::None;
+					point.captureProgress = 0.0f;
+					ApplyPointOwnerVisual(point);
+				}
+			} else if (contested || activeTeam == Team::None) {
 				point.capturingTeam = Team::None;
+			}
 			return;
 		}
 
-		const float deltaProgress = static_cast<float>(delta.milliseconds()) / static_cast<float>(captureMs);
+		const float deltaProgress = static_cast<float>(delta.milliseconds()) / static_cast<float>(phaseMs);
 
 		if (contested) {
 			if (point.capturingTeam != Team::None && deltaProgress > 0.0f)
@@ -480,8 +544,16 @@ namespace {
 		if (deltaProgress > 0.0f)
 			point.captureProgress = std::min(1.0f, point.captureProgress + deltaProgress);
 
-		if (point.captureProgress >= 1.0f)
+		if (point.captureProgress >= 1.0f) {
+			if (!neutral) {
+				point.owner = Team::None;
+				point.captureProgress = 0.0f;
+				ApplyPointOwnerVisual(point);
+				return;
+			}
+
 			FinalizeCapture(point, activeTeam);
+		}
 	}
 
 	/*

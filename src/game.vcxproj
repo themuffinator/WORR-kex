@@ -100,10 +100,11 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>KEX_Q2_GAME;KEX_Q2GAME_EXPORTS;NO_FMT_SOURCE;KEX_Q2GAME_DYNAMIC;_CRT_SECURE_NO_WARNINGS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
       <DisableSpecificWarnings>4267;4244</DisableSpecificWarnings>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <PreBuildEvent>
       <Command>python "$(ProjectDir)..\tools\release\gen_version_header.py" --version-file "$(ProjectDir)..\VERSION" --output "$(ProjectDir)shared\version_autogen.hpp"</Command>
@@ -270,6 +271,7 @@
     <ClCompile Include="server\gameplay\g_main.cpp" />
     <ClCompile Include="server\gameplay\g_map_manager.cpp" />
     <ClCompile Include="server\match\match_state.cpp" />
+    <ClCompile Include="server\match\tournament.cpp" />
     <ClCompile Include="server\gameplay\g_misc.cpp" />
     <ClCompile Include="server\gameplay\g_monster.cpp" />
     <ClCompile Include="server\gameplay\g_monster_spawn.cpp" />
@@ -284,6 +286,7 @@
     <ClCompile Include="server\gameplay\g_utilities.cpp" />
     <ClCompile Include="server\gameplay\g_weapon.cpp" />
     <ClCompile Include="server\menu\menu_page_admin.cpp" />
+    <ClCompile Include="server\menu\menu_page_admin_commands.cpp" />
     <ClCompile Include="server\menu\menu_page_callvote.cpp" />
     <ClCompile Include="server\menu\menu_page_hostinfo.cpp" />
     <ClCompile Include="server\menu\menu_page_mymap.cpp" />
@@ -292,9 +295,11 @@
     <ClCompile Include="server\menu\menu_page_mapselector.cpp" />
     <ClCompile Include="server\menu\menu_page_matchinfo.cpp" />
     <ClCompile Include="server\menu\menu_page_matchstats.cpp" />
+    <ClCompile Include="server\menu\menu_page_tournament.cpp" />
     <ClCompile Include="server\menu\menu_main.cpp" />
     <ClCompile Include="server\menu\menu_system.cpp" />
     <ClCompile Include="server\menu\menu_page_voting.cpp" />
+    <ClCompile Include="server\menu\menu_page_forfeit.cpp" />
     <ClCompile Include="server\monsters\m_actor.cpp" />
     <ClCompile Include="server\monsters\m_arachnid.cpp" />
     <ClCompile Include="server\monsters\m_berserk.cpp" />

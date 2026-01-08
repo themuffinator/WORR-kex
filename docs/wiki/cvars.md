@@ -24,26 +24,32 @@ This reference consolidates the gameplay-facing console variables (cvars) that W
 | `roundtimelimit` | `2` | Serverinfo | Minutes allotted per round before sudden-death logic kicks in. |
 | `mercylimit` | `0` | Live | Ends lopsided matches early when a team exceeds the margin. |
 | `noplayerstime` | `10` | Live | Seconds the map stays active without human players before resetting. |
-| `marathon` | `0` | Serverinfo | Enables Marathon leg chaining; consult timers below. |
-| `g_marathon_timelimit` | `0` | Live | Overrides leg duration when Marathon mode is active. |
-| `g_marathon_scorelimit` | `0` | Live | Score cap per leg in Marathon runs. |
+| `marathon` | `0` | Serverinfo | Explicit Marathon toggle; non-zero leg limits also enable chaining. |
+| `g_marathon_timelimit` | `0` | Live | Minutes per leg; setting this enables Marathon advancement. |
+| `g_marathon_scorelimit` | `0` | Live | Score delta per leg; setting this enables Marathon advancement. |
 | `match_start_no_humans` | `1` | Live | Defers countdown until a human joins the lobby. |
 | `match_auto_join` | `1` | Live | Auto-slots players onto teams as they connect. |
 | `match_force_join` | `0` | Live | Forces ready players into teams when the match starts. |
 | `match_do_force_respawn` | `1` | Live | Re-spawns eliminated players after `match_force_respawn_time`. |
 | `match_force_respawn_time` | `2.4` | Live | Seconds before a forced respawn occurs. |
 | `match_do_overtime` | `120` | Live | Adds the listed seconds of overtime to 1v1 matches that tie at regulation. |
+| `g_allow_duel_queue` | `1` | Live | Enables duel/gauntlet queueing; tournaments always disable this and clear the queue. |
 | `match_timeout_length` | `120` | Live | Duration (seconds) of player-called timeouts; `0` disables the feature. |
 | `warmup_enabled` | `1` | Live | Enables the warmup lobby cycle after map load. |
 | `warmup_do_ready_up` | `0` | Live | Requires players to ready-up before the countdown starts. |
 | `g_warmup_countdown` | `10` | Live | Seconds the start timer runs once ready-up conditions are satisfied. |
 | `g_warmup_ready_percentage` | `0.51f` | Live | Fraction of ready players required when ready-up is enabled. |
+| `g_practice` | `0` | Serverinfo | Keeps the lobby in warmup (no scoring) for practice sessions. |
+| `match_setup_length` | `standard` | Live | Stores match setup length preset (short/standard/long/endurance). |
+| `match_setup_type` | `standard` | Live | Stores match setup type preset (casual/standard/competitive/tournament). |
+| `match_setup_bestof` | `bo1` | Live | Stores match setup series length (BO1/BO3/BO5/BO7/BO9). |
+| `g_tourney_cfg` | `tourney.json` | Live | Tournament config filename resolved in the active gamedir or `baseq2`. |
 
 ### Player lifecycle & loadouts
 
 | Cvar | Default | Scope | Usage |
 | --- | --- | --- | --- |
-| `match_crosshair_ids` | `1` | Live | Shows friendly names when aiming at teammates. |
+| `match_crosshair_ids` | `1` | Live | Shows player names when aiming at other players. |
 | `match_holdable_adrenaline` | `1` | Live | Allows adrenaline holdable pickup outside duel presets. |
 | `match_instant_items` | `1` | Live | Grants items immediately on pickup (no use delay). |
 | `match_items_respawn_rate` | `1.0` | Live | Global multiplier on item respawn timers. |
@@ -54,6 +60,7 @@ This reference consolidates the gameplay-facing console variables (cvars) that W
 | `match_allow_teleporter_pads` | `1` | Live | Keeps teleporter pads available for spawn logic. |
 | `match_weapons_stay` | `0` | Live | When set, weapon pickups persist after being claimed. |
 | `match_drop_cmd_flags` | `7` | Live | Bitmask of inventory types dropped with the `drop` command. |
+| `g_ghost_min_play_time` | `60` | Live | Seconds of live play required before reconnect ghost data is persisted. |
 | `g_start_items` | `` | Live | Seed inventory items granted on spawn. |
 | `g_starting_health` | `100` | Live | Base health on spawn before bonuses apply. |
 | `g_starting_health_bonus` | `25` | Live | Temporary bonus health that decays to the base value. |
@@ -75,7 +82,7 @@ This reference consolidates the gameplay-facing console variables (cvars) that W
 | `g_allow_vote_mid_game` | `0` | Live | Blocks new votes once a match is underway when `0`. |
 | `g_allow_spec_vote` | `0` | Live | Lets spectators initiate votes when enabled. |
 | `g_allow_forfeit` | `1` | Live | Unlocks the `forfeit` vote/command path. |
-| `g_vote_flags` | `8191` | Live | Bitmask of vote commands available to players; see [Voting Flags](../g_vote_flags.md). |
+| `g_vote_flags` | `16383` | Live | Bitmask of vote commands available to players (includes `forfeit`); see [Voting Flags](../g_vote_flags.md). |
 | `g_vote_limit` | `3` | Live | Number of failed votes before a player is throttled. |
 | `g_allow_mymap` | `1` | Live | Enables per-player MyMap queue submissions. |
 | `g_allow_custom_skins` | `1` | Live | Lets clients stream custom skin assets when permitted by policy. |
@@ -97,14 +104,14 @@ This reference consolidates the gameplay-facing console variables (cvars) that W
 | `g_maps_allow_custom_sounds` | `1` | Live | Same as above for audio packages. |
 | `match_maps_list` | `` | Live | Inline rotation fallback processed when the pool is empty. |
 | `match_maps_list_shuffle` | `1` | Live | Shuffles the inline rotation once it loops, avoiding repeats. |
-| `g_mapspawn_no_bfg` | `0` | Live | Strips BFG spawns from maps that include them. |
-| `g_mapspawn_no_plasmabeam` | `0` | Live | Removes Plasma Beam spawns when toggled. |
+| `g_mapspawn_no_bfg` | `0` | Live | Strips BFG spawns from maps with BFG-less options. |
+| `g_mapspawn_no_plasmabeam` | `0` | Live | Strips Plasma Beam spawns from maps with Beam-less options. |
 
 ### Gametype & ruleset management
 
 | Cvar | Default | Scope | Usage |
 | --- | --- | --- | --- |
-| `g_gametype` | `1` (`ffa`) | Serverinfo | Primary gametype switch; `0` is Practice Mode (no-score, no self-damage). |
+| `g_gametype` | `1` (`ffa`) | Serverinfo | Primary gametype switch; `0` is `none` (no-score ruleset that also disables self-damage). |
 | `g_ruleset` | `RS_Q2` | Serverinfo | Applies predefined gameplay rule bundles; auto-corrected via `CheckRuleset`. |
 | `g_level_rulesets` | `0` | Live | Lets maps override the active ruleset when set. |
 | `deathmatch` | `1` | Latch | Baseline deathmatch toggle; enforced when team modes require it. |
@@ -122,6 +129,7 @@ This reference consolidates the gameplay-facing console variables (cvars) that W
 | `g_quadhog` | `0` | Serverinfo + Latch | Restricts Quad distribution to a single player at a time. |
 | `g_nadeFest` | `0` | Serverinfo + Latch | Forces grenade-focused loadouts in supported modes. |
 | `g_frenzy` | `0` | Serverinfo + Latch | Activates Frenzy rules for high-velocity matches. |
+| `g_gravity_lotto` | `0` | Live | Enables Gravity Lotto modifier presets. |
 | `g_domination_*` | `see defaults` | Live | Tunes Domination tick cadence, capture speeds, and bonuses. |
 | `g_coop_*` | `see defaults` | Latch | Coop campaign toggles for collision, lives, and instanced items. |
 | `g_lms_num_lives` | `4` | Latch | Starting lives for LMS/LTS variants. |
@@ -241,9 +249,6 @@ This reference consolidates the gameplay-facing console variables (cvars) that W
 | `g_dm_random_items` | `0` | Live | Enables item randomizer for DM playlists. |
 | `g_dm_strong_mines` | `0` | Live | Buffs mines in DM playlists. |
 | `g_frag_messages` | `1` | Live | Broadcasts frag strings to clients. |
-| `g_owner_push_scores` | `1` | Live | Keeps lobby owners syncing scoreboard data. |
-| `g_matchstats` | `0` | Live | Controls per-match stat dumps (see Analytics). |
-| `g_auto_screenshot_tool` | `0` | Live | Signals screenshot automation (see Analytics). |
 
 ## Related persona guides
 

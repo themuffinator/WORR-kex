@@ -9,13 +9,13 @@
 - Manual QA checklists capture behaviors unique to WORR, such as warmup deaths consuming lives in elimination modes and strict validation of vote arguments. These systems are not present or documented in the base game.
 
 ## 3. Multiplayer Modes and Match Flow
-- WORR ships 18 competitive gametypes plus Practice Mode, from Domination and Clan Arena to ProBall and Gauntlet, and tags each with structured metadata (flags, spawn identifiers) for runtime logic. The rerelease DLL does not expose a comparable expanded roster.
+- WORR ships 18 competitive gametypes plus a practice format, from Domination and Clan Arena to ProBall and Gauntlet, and tags each with structured metadata (flags, spawn identifiers) for runtime logic. The rerelease DLL does not expose a comparable expanded roster.
 - The match engine runs a full state machine (warmup, ready-up, countdown, live, overtime) with Marathon meta-progression that tracks leg scores across maps. This systemic layer is absent from the vanilla rerelease, which relies on simpler deathmatch loops.
 - WORR persists ghosts for disconnected players, storing spawn origin/angles so returning clients respawn seamlessly. This is beyond the original game's session handling.
 
 ## 4. Map Rotation, Voting, and Match Configuration
 - WORR replaces the rerelease's `g_map_list`/`g_map_list_shuffle` cvars with a JSON-driven map pool, MyMap queues, and post-match selectors governed by player counts, history, and map tags. The stock DLL's rotation is limited to parsing the `g_map_list` string at runtime.
-- `g_vote_flags` exposes granular toggles for twelve vote types (maps, gametype, shuffle, arena changes, etc.), enabling curated call-vote menus that have no equivalent control surface upstream.
+- `g_vote_flags` exposes granular toggles for fourteen vote types (maps, gametype, shuffle, arena changes, forfeit, etc.), enabling curated call-vote menus that have no equivalent control surface upstream.
 
 ## 5. Administration and Server Operations
 - WORR modularizes command handling into dedicated admin, client, cheat, system, and voting sources. Admin tooling covers ban/allow lists, arena forcing, ready-state mass toggles, and match control workflows absent from the stock command set.

@@ -546,7 +546,7 @@ bool M_droptofloor(gentity_t* ent) {
 }
 
 void M_SetEffects(gentity_t* ent) {
-	ent->s.effects &= ~(EF_COLOR_SHELL | EF_POWERSCREEN | EF_EMPATHY | EF_QUAD | EF_PENT | EF_FLIES);
+	ent->s.effects &= ~(EF_COLOR_SHELL | EF_POWERSCREEN | EF_EMPATHY | EF_QUAD | EF_PENT | EF_DOUBLE | EF_FLIES);
 	ent->s.renderFX &= ~(RF_SHELL_RED | RF_SHELL_GREEN | RF_SHELL_BLUE | RF_SHELL_DOUBLE);
 
 	ent->s.sound = 0;
@@ -592,7 +592,7 @@ void M_SetEffects(gentity_t* ent) {
 
 	if (ent->monsterInfo.double_time > level.time) {
 		if (G_PowerUpExpiring(ent->monsterInfo.double_time))
-			ent->s.effects |= EF_EMPATHY;
+			ent->s.effects |= EF_DOUBLE;
 	}
 
 	if (ent->monsterInfo.invincibility_time > level.time) {
