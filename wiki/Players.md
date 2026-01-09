@@ -52,8 +52,21 @@ Practice format: set `g_practice 1` to keep the lobby in warmup (no scoring). Di
 Want the full flow? See the [Tournament Format Guide](Tournaments.md) for config details and veto flow notes.
 
 ## Reconnects & Ghosts
-- WORR preserves your spawn state when you disconnect unexpectedly. On reconnect, the server attempts to respawn you at the stored ghost origin/angles if the spot is safe; otherwise it falls back to a standard spawn point and alerts you to blockers.
-- Use this to your advantage: if you crash mid-series, rejoin quickly so your team retains your inventory and stats.
+WORR’s ghost player system is built to preserve continuity when a player disconnects unexpectedly. It stores a snapshot of your last spawn position and angles, then tries to reuse that space when you return.
+
+### Ghost flow at a glance
+- **Ghost capture:** The server caches your last position/angles as a reconnect ghost slot while the auto-ghost system is active.
+- **Safety-first checks:** On rejoin, the server validates that the ghost spot is clear of players or map geometry before spawning you there.
+- **Fallback protection:** If the spot is blocked, the ghost spawn is denied, the blocker is logged, and normal spawn selection takes over.
+
+### Persistence rules
+- **Minimum participation:** Ghost data persists only after you have logged at least `g_ghost_min_play_time` seconds of match time (default `60`). Short joins will not create a ghost slot.
+- **State continuity:** When the ghost spawn succeeds, your score, stats, and inventory return with you as part of the ghost system’s persistence.
+
+### Player tips
+- **Reconnect fast:** Rejoin quickly after a disconnect so the server can still use your cached spot before the match moves on.
+- **Expect a backup spawn:** If you appear elsewhere, your ghost slot was blocked or expired—regroup and keep fighting.
+- **Tournament timeouts:** In tournament matches, a disconnect triggers a brief timeout window so you can return to play.
 
 ## Quick Console Tips
 - `ready`/`notready` toggle your warmup state; countdowns will not start until enough players are marked ready.
