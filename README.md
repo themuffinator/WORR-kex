@@ -25,6 +25,25 @@ It dramatically extends entity and gameplay support, integrates modern competiti
 
 ## Core Highlights
 
+### Feature Overview
+- Vastly expanded mapping possibilities with the potential to enhance single and multiplayer experiences
+- New items and content such as a DOOM-style plasma gun, QUAKE's thunderbolt and more
+- Loads of monsters ported from QUAKE, Oblivion and more — great fun in the new Horde mode
+- An intricate match state and match management system for all forms of competitive matches
+- A ludicrously over-engineered map management and queuing system
+- A plethora of refinements and minor bug fixes
+- Numerous gametypes and modifiers offer a myriad of ways to enjoy multiplayer matches
+- A full set of match formats, including: tournaments, practice mode, marathons and regular matches
+- Highly refined and rebalanced gameplay enhances the competitive element while retaining the original Quake II spirit
+- Full match statistics exporting (JSON/HTML) for deep match analyses
+- An extensive in-game menu for a variety of controls and outlining server and host info
+- Extensive admin server controls
+- Extensive voting functionality
+- A massively rewritten codebase using modern C++ for greater safety and stability
+- Adaptive HUD presentation with mini-score displays, frag messaging, and match announcer feedback
+- Auto-ghost recovery for disconnected players, restoring score, inventory, and stats
+- Server-side client configs for persistent settings, preferences, and progression
+
 ### General Improvements
 - Extensive refinements and bug fixes throughout the game
 - Vastly expanded support for **entities**, **monsters**, and **map logic** — including many elements from other **QUAKE titles and popular mods**
