@@ -61,8 +61,19 @@
 
 Want the full flow? See the [Tournament Format Guide](tournaments.md) for config details and veto flow notes.
 
-## Reconnect Safeguards and Ghost Tips
-- **Pending Ghost Respawns:** WORR caches your last position/angles when the auto-ghost system is active. On rejoin, it first checks if your ghost spot is clear of players or geometry before spawning you there.
-- **Blocked Ghosts:** If the spot is occupied (player or map brush), the server denies the ghost spawn, logs what blocked you, and reverts to regular spawn logic. Expect to appear at the next safe point instead.
-- **Minimum participation:** Ghost data only persists after you have logged at least `g_ghost_min_play_time` seconds of real match time (default 60). Leaving earlier clears the slot, so stay in long enough before testing quick reconnects.
-- **Quick reconnect routine:** Rejoin promptly, wait a second for the ghost check, and if you spawn elsewhere, regroup—your inventory and stats still restore thanks to the ghost system’s state persistence.
+## Ghost Player System (Reconnect Safeguards)
+WORR’s ghost player system is a continuity safety net for unexpected disconnects. It records a snapshot of your last valid spawn location and angles, then tries to honor that spot if you return quickly.
+
+### How it works
+- **Ghost capture:** When the auto-ghost system is active, the server caches your last position/angles as a reconnect ghost slot.
+- **Safety-first respawn:** On rejoin, the server checks the saved spot for blocking players or geometry before placing you there.
+- **Fallback logic:** If anything is obstructing the ghost spot, the server logs the blocker and falls back to normal spawn selection so you are never trapped.
+
+### Persistence rules
+- **Minimum participation:** Ghost data is only saved after you have logged at least `g_ghost_min_play_time` seconds of real match time (default `60`). Leave earlier and the slot clears, preventing accidental ghost saves from brief joins.
+- **State continuity:** When the ghost spawn succeeds, your score, stats, and inventory return with you as part of the ghost system’s persistence.
+
+### Player tips
+- **Reconnect fast:** Rejoin promptly after a disconnect so the server can still use your cached spot before the match state moves on.
+- **Don’t panic on a new spawn:** If you appear elsewhere, it means your ghost slot was blocked or expired; regroup and continue without losing momentum.
+- **Tournament timeouts:** In tournament matches, a disconnect triggers a brief timeout window so you can return to play.
