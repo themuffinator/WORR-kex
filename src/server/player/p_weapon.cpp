@@ -3139,14 +3139,15 @@ PLASMA GUN
 ======================================================================
 */
 
-// v_plasmr.md2 has 52 frames (0..51)
-constexpr int PLASMAGUN_FRAME_ACTIVATE_LAST = 7;
-constexpr int PLASMAGUN_FRAME_FIRE_FIRST = 8;
-constexpr int PLASMAGUN_FRAME_FIRE_LAST = 19;
-constexpr int PLASMAGUN_FRAME_IDLE_FIRST = 20;
-constexpr int PLASMAGUN_FRAME_IDLE_LAST = 45;
-constexpr int PLASMAGUN_FRAME_DEACTIVATE_FIRST = 42;
-constexpr int PLASMAGUN_FRAME_DEACTIVATE_LAST = 45;
+// v_plasmr.md2 has 52 frames (0..51): activate 0-8, fire 9-42, idle 43-49,
+// deactivate 50-51.
+constexpr int PLASMAGUN_FRAME_ACTIVATE_LAST = 8;
+constexpr int PLASMAGUN_FRAME_FIRE_FIRST = 9;
+constexpr int PLASMAGUN_FRAME_FIRE_LAST = 42;
+constexpr int PLASMAGUN_FRAME_IDLE_FIRST = 43;
+constexpr int PLASMAGUN_FRAME_IDLE_LAST = 49;
+constexpr int PLASMAGUN_FRAME_DEACTIVATE_FIRST = 50;
+constexpr int PLASMAGUN_FRAME_DEACTIVATE_LAST = 51;
 
 static void Weapon_PlasmaGun_Fire(gentity_t *ent) {
   if (!ent || !ent->client)

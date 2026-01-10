@@ -504,83 +504,6 @@ void TournamentRecordTeamWin(Team team) {
     game.tournament.seriesComplete = true;
 }
 
-bool Tournament_ReplayGame(int gameNumber, std::string &message) {
-  if (!Tournament_IsActive()) {
-    message = "Tournament mode is not active.";
-    return false;
-  }
-
-  if (gameNumber < 1) {
-    message = "Replay game number must be at least 1.";
-    return false;
-  }
-
-  if (game.tournament.mapOrder.empty()) {
-    message = "Tournament map order is not locked yet.";
-    return false;
-  }
-
-  const size_t targetIndex = static_cast<size_t>(gameNumber - 1);
-  if (targetIndex >= game.tournament.mapOrder.size()) {
-    message =
-        G_Fmt("Replay game must be between 1 and {}.",
-              game.tournament.mapOrder.size())
-            .data();
-    return false;
-  }
-
-  TournamentEnsureStateForMatch();
-  if (!game.tournament.active) {
-    message = "Tournament state is not active.";
-    return false;
-  }
-
-  game.tournament.seriesComplete = false;
-  game.tournament.gamesPlayed = 0;
-  game.tournament.teamWins.fill(0);
-  game.tournament.playerWins.fill(0);
-
-  const size_t available = std::min(targetIndex, game.tournament.matchWinners.size());
-  for (size_t i = 0; i < available; ++i) {
-    const std::string &winner = game.tournament.matchWinners[i];
-    if (game.tournament.teamBased) {
-      if (winner == "red") {
-        game.tournament.teamWins[static_cast<size_t>(Team::Red)] += 1;
-      } else if (winner == "blue") {
-        game.tournament.teamWins[static_cast<size_t>(Team::Blue)] += 1;
-      }
-    } else if (!winner.empty()) {
-      const size_t slot = TournamentFindOrAssignPlayerSlotById(winner, {});
-      if (slot != kTournamentInvalidSlot) {
-        game.tournament.playerWins[slot] += 1;
-      }
-    }
-    game.tournament.gamesPlayed += 1;
-  }
-
-  if (game.tournament.matchWinners.size() > targetIndex)
-    game.tournament.matchWinners.resize(targetIndex);
-  if (game.tournament.matchIds.size() > targetIndex)
-    game.tournament.matchIds.resize(targetIndex);
-  if (game.tournament.matchMaps.size() > targetIndex)
-    game.tournament.matchMaps.resize(targetIndex);
-
-  game.tournament.gamesPlayed = static_cast<int>(targetIndex);
-  game.tournament.seriesComplete = false;
-
-  const std::string &mapName = game.tournament.mapOrder[targetIndex];
-  if (mapName.empty()) {
-    message = "Replay map is missing.";
-    return false;
-  }
-
-  gi.LocBroadcast_Print(PRINT_CENTER,
-                        ".Tournament replay: game {} will be replayed.",
-                        gameNumber);
-  gi.AddCommandString(G_Fmt("gamemap {}\n", mapName).data());
-  return true;
-}
-
 int TournamentBestOpponentWins(size_t winnerSlot) {
   int best = 0;
   for (size_t i = 0; i < game.maxClients; ++i) {
@@ -686,6 +609,84 @@ void QueueTournamentIntermission(std::string_view baseMessage,
 }
 
 } // namespace
+
+bool Tournament_ReplayGame(int gameNumber, std::string &message) {
+  if (!Tournament_IsActive()) {
+    message = "Tournament mode is not active.";
+    return false;
+  }
+
+  if (gameNumber < 1) {
+    message = "Replay game number must be at least 1.";
+    return false;
+  }
+
+  if (game.tournament.mapOrder.empty()) {
+    message = "Tournament map order is not locked yet.";
+    return false;
+  }
+
+  const size_t targetIndex = static_cast<size_t>(gameNumber - 1);
+  if (targetIndex >= game.tournament.mapOrder.size()) {
+    message =
+        G_Fmt("Replay game must be between 1 and {}.",
+              game.tournament.mapOrder.size())
+            .data();
+    return false;
+  }
+
+  TournamentEnsureStateForMatch();
+  if (!game.tournament.active) {
+    message = "Tournament state is not active.";
+    return false;
+  }
+
+  game.tournament.seriesComplete = false;
+  game.tournament.gamesPlayed = 0;
+  game.tournament.teamWins.fill(0);
+  game.tournament.playerWins.fill(0);
+
+  const size_t available =
+      std::min(targetIndex, game.tournament.matchWinners.size());
+  for (size_t i = 0; i < available; ++i) {
+    const std::string &winner = game.tournament.matchWinners[i];
+    if (game.tournament.teamBased) {
+      if (winner == "red") {
+        game.tournament.teamWins[static_cast<size_t>(Team::Red)] += 1;
+      } else if (winner == "blue") {
+        game.tournament.teamWins[static_cast<size_t>(Team::Blue)] += 1;
+      }
+    } else if (!winner.empty()) {
+      const size_t slot = TournamentFindOrAssignPlayerSlotById(winner, {});
+      if (slot != kTournamentInvalidSlot) {
+        game.tournament.playerWins[slot] += 1;
+      }
+    }
+    game.tournament.gamesPlayed += 1;
+  }
+
+  if (game.tournament.matchWinners.size() > targetIndex)
+    game.tournament.matchWinners.resize(targetIndex);
+  if (game.tournament.matchIds.size() > targetIndex)
+    game.tournament.matchIds.resize(targetIndex);
+  if (game.tournament.matchMaps.size() > targetIndex)
+    game.tournament.matchMaps.resize(targetIndex);
+
+  game.tournament.gamesPlayed = static_cast<int>(targetIndex);
+  game.tournament.seriesComplete = false;
+
+  const std::string &mapName = game.tournament.mapOrder[targetIndex];
+  if (mapName.empty()) {
+    message = "Replay map is missing.";
+    return false;
+  }
+
+  gi.LocBroadcast_Print(PRINT_CENTER,
+                        ".Tournament replay: game {} will be replayed.",
+                        gameNumber);
+  gi.AddCommandString(G_Fmt("gamemap {}\n", mapName).data());
+  return true;
+}
 
 void Marathon_RegisterClientBaseline(gclient_t *cl) {
   if (!cl || !game.marathon.active)
